@@ -1,0 +1,31 @@
+{
+  "name": "live-node-starter",
+  "version": "1.0.0",
+  "description": "A project to get up and running with Deepgram's livestream speech-to-text API",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepgram-starters/live-node-starter.git"
+  },
+  "keywords": [
+    "speech-to-text",
+    "deepgram",
+    "streaming"
+  ],
+  "author": "Deepgram",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/deepgram-starters/live-node-starter/issues"
+  },
+  "homepage": "https://github.com/deepgram-starters/live-node-starter#readme",
+  "dependencies": {
+    "@deepgram/sdk": "^3.0.1",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "ws": "^8.16.0"
+  }
+}

@@ -1,24 +1,12 @@
-> Copy the entire contents of https://github.com/deepgram-starters/deepgram-starters-ui to the `./static/` folder.
+# Live Node Starter
 
-> The name of the project and repo, is less important than the correct configuration of the `deepgram.toml` file, if you wish for it to be included in future onboarding workflows.
-
-# [Usecase] [Language] Starter
-
-> Write an intro for this project
-
-Nifty little into, maybe a screenshot.
+This sample demonstrates interacting with the Deepgram live streaming API from a Node.js server.
 
 ## Sign-up to Deepgram
-
-> Please leave this section unchanged, unless providing a UTM on the URL.
 
 Before you start, it's essential to generate a Deepgram API key to use in this project. [Sign-up now for Deepgram](https://console.deepgram.com/signup).
 
 ## Quickstart
-
-> Detail the manual steps to get started.
-
-e.g.
 
 ### Manual
 
@@ -38,9 +26,6 @@ npm install
 
 #### Edit the config file
 
-> Config file can be any appropriate file for the framework/language. For e.g.
-> Node is using a config.json file, while Python is only use .env files
-
 Copy the code from `sample.env` and create a new file called `.env`. Paste in the code and enter your API key you generated in the [Deepgram console](https://console.deepgram.com/).
 
 ```json
@@ -49,12 +34,10 @@ DEEPGRAM_API_KEY=%api_key%
 
 #### Run the application
 
-> to support the UI, it must always run on port 8080
-
-The `dev` script will run a web and API server concurrently. Once running, you can [access the application in your browser](http://localhost:8080/).
+The `start` script will run a web and API server concurrently. Once running, you can [access the application in your browser](http://localhost:3000/).
 
 ```bash
-npm start
+npm run start
 ```
 
 ## What is Deepgram?
