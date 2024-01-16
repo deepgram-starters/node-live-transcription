@@ -1,37 +1,30 @@
 const captions = window.document.getElementById("captions");
 
 async function getMicrophone() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    return new MediaRecorder(stream, { mimeType: "audio/webm" });
-  } catch (error) {
-    console.error("error accessing microphone:", error);
-    throw error;
-  }
+  const userMedia = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+  });
+
+  return new MediaRecorder(userMedia);
 }
 
 async function openMicrophone(microphone, socket) {
-  return new Promise((resolve) => {
-    microphone.onstart = () => {
-      console.log("client: microphone opened");
-      document.body.classList.add("recording");
-      resolve();
-    };
+  await microphone.start(500);
 
-    microphone.onstop = () => {
-      console.log("client: microphone closed");
-      document.body.classList.remove("recording");
-    };
+  microphone.onstart = () => {
+    console.log("client: microphone opened");
+    document.body.classList.add("recording");
+  };
 
-    microphone.ondataavailable = (event) => {
-      console.log("client: microphone data received");
-      if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-        socket.send(event.data);
-      }
-    };
+  microphone.onstop = () => {
+    console.log("client: microphone closed");
+    document.body.classList.remove("recording");
+  };
 
-    microphone.start(1000);
-  });
+  microphone.ondataavailable = (e) => {
+    console.log("client: sent data to websocket");
+    socket.emit("packet-sent", e.data);
+  };
 }
 
 async function closeMicrophone(microphone) {
@@ -39,19 +32,16 @@ async function closeMicrophone(microphone) {
 }
 
 async function start(socket) {
-  const listenButton = document.querySelector("#record");
+  const listenButton = document.getElementById("record");
   let microphone;
 
   console.log("client: waiting to open microphone");
 
   listenButton.addEventListener("click", async () => {
     if (!microphone) {
-      try {
-        microphone = await getMicrophone();
-        await openMicrophone(microphone, socket);
-      } catch (error) {
-        console.error("error opening microphone:", error);
-      }
+      // open and close the microphone
+      microphone = await getMicrophone();
+      await openMicrophone(microphone, socket);
     } else {
       await closeMicrophone(microphone);
       microphone = undefined;
@@ -60,23 +50,15 @@ async function start(socket) {
 }
 
 window.addEventListener("load", () => {
-  const socket = new WebSocket("ws://localhost:3000");
+  const socket = io((options = { transports: ["websocket"] }));
 
-  socket.addEventListener("open", async () => {
-    console.log("client: connected to server");
+  socket.on("connect", async () => {
+    console.log("client: connected to websocket");
     await start(socket);
   });
 
-  socket.addEventListener("message", (event) => {
-    const data = JSON.parse(event.data);
-    if (data.channel.alternatives[0].transcript !== "") {
-      captions.innerHTML = data
-        ? `<span>${data.channel.alternatives[0].transcript}</span>`
-        : "";
-    }
-  });
-
-  socket.addEventListener("close", () => {
-    console.log("client: disconnected from server");
+  socket.on("transcript", (transcript) => {
+    if (transcript !== "")
+      captions.innerHTML = transcript ? `<span>${transcript}</span>` : "";
   });
 });
