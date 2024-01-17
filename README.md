@@ -6,7 +6,7 @@ This sample demonstrates interacting with the Deepgram live streaming API from a
 
 ## What is Deepgram?
 
-[Deepgram](https://deepgram.com/) is a foundational AI company providing the speech-to-text and language understanding capabilities you need to make your data readable and actionable by human or machines.
+[Deepgram](https://deepgram.com/) is a foundational AI company providing speech-to-text and language understanding capabilities to make data readable and actionable by human or machines.
 
 ## Sign-up to Deepgram
 
