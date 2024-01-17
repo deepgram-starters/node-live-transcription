@@ -1,17 +1,18 @@
 const express = require("express");
 const http = require("http");
-const { Server } = require("socket.io");
+const WebSocket = require("ws");
 const { createClient, LiveTranscriptionEvents } = require("@deepgram/sdk");
 const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const wss = new WebSocket.Server({ server });
+
 const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
 let keepAlive;
 
-const setupDeepgram = (socket) => {
+const setupDeepgram = (ws) => {
   const deepgram = deepgramClient.listen.live({
     language: "en",
     punctuate: true,
@@ -28,6 +29,12 @@ const setupDeepgram = (socket) => {
   deepgram.addListener(LiveTranscriptionEvents.Open, async () => {
     console.log("deepgram: connected");
 
+    deepgram.addListener(LiveTranscriptionEvents.Transcript, (data) => {
+      console.log("deepgram: transcript received");
+      console.log("ws: transcript sent to client");
+      ws.send(JSON.stringify(data));
+    });
+
     deepgram.addListener(LiveTranscriptionEvents.Close, async () => {
       console.log("deepgram: disconnected");
       clearInterval(keepAlive);
@@ -35,60 +42,49 @@ const setupDeepgram = (socket) => {
     });
 
     deepgram.addListener(LiveTranscriptionEvents.Error, async (error) => {
-      console.log("deepgram: error recieved");
+      console.log("deepgram: error received");
       console.error(error);
     });
 
     deepgram.addListener(LiveTranscriptionEvents.Warning, async (warning) => {
-      console.log("deepgram: warning recieved");
+      console.log("deepgram: warning received");
       console.warn(warning);
     });
 
-    deepgram.addListener(LiveTranscriptionEvents.Transcript, (data) => {
-      console.log("deepgram: packet received");
-      console.log("deepgram: transcript received");
-      const transcript = data.channel.alternatives[0].transcript ?? "";
-      console.log("socket: transcript sent to client");
-      socket.emit("transcript", transcript);
-      console.log("socket: transcript data sent to client");
-      socket.emit("data", data);
-    });
-
     deepgram.addListener(LiveTranscriptionEvents.Metadata, (data) => {
-      console.log("deepgram: packet received");
       console.log("deepgram: metadata received");
-      console.log("socket: metadata sent to client");
-      socket.emit("metadata", data);
+      console.log("ws: metadata sent to client");
+      ws.send(JSON.stringify({ metadata: data }));
     });
   });
 
   return deepgram;
 };
 
-io.on("connection", (socket) => {
-  console.log("socket: client connected");
-  let deepgram = setupDeepgram(socket);
+wss.on("connection", (ws) => {
+  console.log("ws: client connected");
+  let deepgram = setupDeepgram(ws);
 
-  socket.on("packet-sent", (data) => {
-    console.log("socket: client data received");
+  ws.on("message", (message) => {
+    console.log("ws: client data received");
 
     if (deepgram.getReadyState() === 1 /* OPEN */) {
-      console.log("socket: data sent to deepgram");
-      deepgram.send(data);
+      console.log("ws: data sent to deepgram");
+      deepgram.send(message);
     } else if (deepgram.getReadyState() >= 2 /* 2 = CLOSING, 3 = CLOSED */) {
-      console.log("socket: data couldn't be sent to deepgram");
-      console.log("socket: retrying connection to deepgram");
+      console.log("ws: data couldn't be sent to deepgram");
+      console.log("ws: retrying connection to deepgram");
       /* Attempt to reopen the Deepgram connection */
       deepgram.finish();
       deepgram.removeAllListeners();
-      deepgram = setupDeepgram(socket);
+      deepgram = setupDeepgram(ws);
     } else {
-      console.log("socket: data couldn't be sent to deepgram");
+      console.log("ws: data couldn't be sent to deepgram");
     }
   });
 
-  socket.on("disconnect", () => {
-    console.log("socket: client disconnected");
+  ws.on("close", () => {
+    console.log("ws: client disconnected");
     deepgram.finish();
     deepgram.removeAllListeners();
     deepgram = null;
@@ -101,5 +97,5 @@ app.get("/", (req, res) => {
 });
 
 server.listen(3000, () => {
-  console.log("listening on localhost:3000");
+  console.log("Server is listening on port 3000");
 });
