@@ -20,7 +20,7 @@ Follow these steps to get started with this starter application.
 
 #### Clone the repository
 
-Go to GitHub and [clone the repository](https://github.com/deepgram-starters/prerecorded-node-starter).
+Go to GitHub and [clone the repository](https://github.com/deepgram-starters/live-node-starter).
 
 #### Install dependencies
 
