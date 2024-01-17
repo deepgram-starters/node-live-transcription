@@ -1,6 +1,6 @@
 # Live Node Starter
 
- [![Discord](https://dcbadge.vercel.app/api/server/xWRaCDBtW4?style=flat)](https://discord.gg/xWRaCDBtW4)
+[![Discord](https://dcbadge.vercel.app/api/server/xWRaCDBtW4?style=flat)](https://discord.gg/xWRaCDBtW4)
 
 This sample demonstrates interacting with the Deepgram live streaming API from a Node.js server.
 
@@ -34,8 +34,16 @@ npm install
 
 Copy the code from `sample.env` and create a new file called `.env`. Paste in the code and enter your API key you generated in the [Deepgram console](https://console.deepgram.com/).
 
-```
+```js
 DEEPGRAM_API_KEY=%api_key%
+```
+
+#### Select branch
+
+The `main` branch demonstrates a native websockets implementation. Switch to the `socket-io` branch to see a version using socket.io.
+
+```bash
+git checkout socket-io
 ```
 
 #### Run the application
@@ -48,8 +56,7 @@ npm run start
 
 ## Issue Reporting
 
-If you have found a bug or if you have a feature request, please report them at this repository issues section.  Please do not report security vulnerabilities on the public GitHub issue tracker. The [Security Policy](./SECURITY.md) details the procedure for contacting Deepgram.
-
+If you have found a bug or if you have a feature request, please report them at this repository issues section. Please do not report security vulnerabilities on the public GitHub issue tracker. The [Security Policy](./SECURITY.md) details the procedure for contacting Deepgram.
 
 ## Getting Help
 
