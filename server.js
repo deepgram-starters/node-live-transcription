@@ -14,10 +14,8 @@ let keepAlive;
 
 const setupDeepgram = (ws) => {
   const deepgram = deepgramClient.listen.live({
-    language: "en",
-    punctuate: true,
     smart_format: true,
-    model: "nova",
+    model: "nova-2",
   });
 
   if (keepAlive) clearInterval(keepAlive);

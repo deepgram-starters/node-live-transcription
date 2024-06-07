@@ -68,11 +68,20 @@ window.addEventListener("load", () => {
   });
 
   socket.addEventListener("message", (event) => {
-    const data = JSON.parse(event.data);
-    if (data.channel.alternatives[0].transcript !== "") {
-      captions.innerHTML = data
-        ? `<span>${data.channel.alternatives[0].transcript}</span>`
-        : "";
+    if (event.data === "") {
+      return;
+    }
+    
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (e) {
+      console.error("Failed to parse JSON:", e);
+      return;
+    }
+  
+    if (data && data.channel && data.channel.alternatives[0].transcript !== "") {
+      captions.innerHTML = `<span>${data.channel.alternatives[0].transcript}</span>`;
     }
   });
 
