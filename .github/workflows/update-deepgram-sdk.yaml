@@ -48,7 +48,6 @@ jobs:
             git push
           else
             echo "Deepgram SDK is up to date"
-          fi
       
           - name: Install dependencies
           run: npm install
