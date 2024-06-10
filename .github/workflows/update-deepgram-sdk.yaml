@@ -3,7 +3,7 @@ name: Update Deepgram SDK
 on:
   schedule:
     - cron: '0 0 * * 1'  # Runs every Monday at midnight
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
 
 jobs:
   check-update:
@@ -11,13 +11,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'  # Use the appropriate node version
-      
+          node-version: '18'
+
       - name: Install jq
         run: sudo apt-get install -y jq
 
@@ -25,18 +25,18 @@ jobs:
         id: get-deepgram-version
         run: |
           DEEPGRAM_VERSION=$(curl -s https://api.github.com/repos/deepgram/deepgram-js-sdk/releases/latest | jq -r '.tag_name')
-          echo "::set-output name=version::$DEEPGRAM_VERSION"
+          echo "version=$DEEPGRAM_VERSION" >> $GITHUB_ENV
 
       - name: Check installed Deepgram SDK version
         id: check-installed-version
         run: |
           INSTALLED_VERSION=$(jq -r '.dependencies["@deepgram/sdk"]' package.json | tr -d '^v')
-          echo "::set-output name=installed_version::$INSTALLED_VERSION"
+          echo "installed_version=$INSTALLED_VERSION" >> $GITHUB_ENV
 
       - name: Compare versions and update if necessary
         run: |
-          LATEST_VERSION=${{ steps.get-deepgram-version.outputs.version }}
-          INSTALLED_VERSION=${{ steps.check-installed-version.outputs.installed_version }}
+          LATEST_VERSION=${{ env.version }}
+          INSTALLED_VERSION=${{ env.installed_version }}
           
           if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ]; then
             echo "Updating Deepgram SDK from $INSTALLED_VERSION to $LATEST_VERSION"
@@ -49,4 +49,33 @@ jobs:
           else
             echo "Deepgram SDK is up to date"
           fi
+      
+          - name: Install dependencies
+          run: npm install
+  
+      - name: Run tests
+        id: run-tests
+        run: |
+          npm run test
 
+          - name: Notify on failure
+          if: failure()
+          uses: slackapi/slack-github-action@v1.23.0
+          with:
+            payload: |
+              {
+                "text": "The tests have failed in the recent GitHub Actions run."
+              }
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          
+          - name: Notify on success
+          if: success()
+          uses: slackapi/slack-github-action@v1.23.0
+          with:
+            payload: |
+              {
+                "text": "The tests have passed for ${{ github.repository }}."
+              }
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
