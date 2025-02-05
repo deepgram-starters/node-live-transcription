@@ -15,7 +15,7 @@ let keepAlive;
 const setupDeepgram = (ws) => {
   const deepgram = deepgramClient.listen.live({
     smart_format: true,
-    model: "nova-2",
+    model: "nova-3",
   });
 
   if (keepAlive) clearInterval(keepAlive);
