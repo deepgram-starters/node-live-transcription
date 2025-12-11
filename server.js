@@ -175,9 +175,6 @@ wss.on('connection', async (clientWs, request) => {
       model,
       language,
       smart_format: true,
-      interim_results: true,
-      utterance_end_ms: 1000,
-      vad_events: true,
     });
   } catch (error) {
     console.error('Error creating Deepgram connection:', error);
