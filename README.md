@@ -71,7 +71,7 @@ pnpm start
 This application:
 1. Accepts a live audio stream URL via WebSocket connection
 2. Fetches the audio stream from the provided URL
-3. Pipes the audio data to Deepgram's live transcription API
+3. Pipes the audio data to Deepgram's live Speech-to-Text API
 4. Returns real-time transcription results to the client
 
 ## Getting Help
