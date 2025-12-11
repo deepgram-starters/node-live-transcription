@@ -1,6 +1,6 @@
 # Node Live Transcription Starter
 
-Live speech-to-text transcription from audio stream URL demo using Deepgram's Read API with Node.js backend and web frontend.
+Live speech-to-text transcription demo using Deepgram's Listen API with Node.js backend and web frontend.
 
 ## Sign-up to Deepgram
 
