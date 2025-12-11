@@ -2,13 +2,20 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { Readable } from 'stream';
 import https from 'https';
 import http from 'http';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Load environment variables
 dotenv.config();
+
+// ES module equivalents for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Validate required environment variables
 if (!process.env.DEEPGRAM_API_KEY) {
@@ -24,19 +31,19 @@ const CONFIG = {
   isDevelopment: process.env.NODE_ENV === 'development',
 };
 
+// Validate API Key exists
+if (!process.env.DEEPGRAM_API_KEY) {
+  console.error('ERROR: DEEPGRAM_API_KEY environment variable is required');
+  console.error('Please copy sample.env to .env and add your API key');
+  process.exit(1);
+}
+
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
 // Track all active WebSocket connections for graceful shutdown
 const activeConnections = new Set();
-
-// Serve static files from the frontend directory
-// In production, serve built frontend files
-// In development, Vite dev server handles frontend (proxy in vite.config.js)
-if (!CONFIG.isDevelopment) {
-  app.use(express.static('frontend/dist'));
-}
 
 /**
  * Validates a stream URL
@@ -160,8 +167,8 @@ wss.on('connection', async (clientWs, request) => {
     return;
   }
 
+  // First try-catch: Create Deepgram connection
   try {
-    // Create Deepgram connection
     const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
 
     deepgramConnection = deepgram.listen.live({
@@ -172,8 +179,33 @@ wss.on('connection', async (clientWs, request) => {
       utterance_end_ms: 1000,
       vad_events: true,
     });
+  } catch (error) {
+    console.error('Error creating Deepgram connection:', error);
 
-    let keepAlive;
+    // Send clear error to client
+    const errorResponse = {
+      type: 'Error',
+      error: {
+        type: 'ConnectionError',
+        code: 'DEEPGRAM_CONNECTION_FAILED',
+        message: 'Failed to establish connection to Deepgram. Please check your API key.',
+        details: {
+          reason: error.message,
+          hint: 'Verify DEEPGRAM_API_KEY is set correctly in .env'
+        }
+      }
+    };
+
+    clientWs.send(JSON.stringify(errorResponse));
+    clientWs.close(1011, 'Deepgram connection failed');
+    activeConnections.delete(clientWs);
+    return;
+  }
+
+  let keepAlive;
+
+  // Second try-catch: Set up audio streaming
+  try {
 
     // Set up Deepgram event listeners
     deepgramConnection.on(LiveTranscriptionEvents.Open, () => {
@@ -336,6 +368,29 @@ wss.on('connection', async (clientWs, request) => {
   });
 });
 
+
+/**
+ * In development: Proxy all requests to Vite dev server for hot reload
+ * In production: Serve pre-built static files from frontend/dist
+ *
+ * IMPORTANT: This MUST come AFTER your WebSocket routes to avoid conflicts
+ */
+if (CONFIG.isDevelopment) {
+  // Development: Proxy to Vite dev server
+  app.use(
+    "/",
+    createProxyMiddleware({
+      target: `http://localhost:${CONFIG.vitePort}`,
+      changeOrigin: true,
+      ws: true, // Enable WebSocket proxying for Vite HMR (Hot Module Reload)
+    })
+  );
+} else {
+  // Production: Serve static files from frontend/dist
+  const distPath = path.join(__dirname, "frontend", "dist");
+  app.use(express.static(distPath));
+}
+
 function gracefulShutdown(signal) {
   console.log(`\n${signal} signal received: starting graceful shutdown...`);
 
@@ -388,10 +443,10 @@ server.listen(CONFIG.port, CONFIG.host, () => {
   console.log(`🚀 Live STT Backend Server running at http://localhost:${CONFIG.port}`);
   console.log(`📡 WebSocket endpoint: ws://localhost:${CONFIG.port}/live-stt/stream`);
   if (CONFIG.isDevelopment) {
-    console.log(`\n⚠️  In development, Vite proxies to this backend`);
-    console.log(`   Frontend: http://localhost:${CONFIG.vitePort} (Vite with proxy)`);
-    console.log(`   Backend API: http://localhost:${CONFIG.port}`);
+    console.log(`📡 Proxying frontend from Vite dev server on port ${CONFIG.vitePort}`);
+    console.log(`\n⚠️  Open your browser to http://localhost:${CONFIG.port}`);
+  } else {
+    console.log(`📦 Serving built frontend from frontend/dist`);
   }
-  console.log('\n✨ Ready to accept connections!');
   console.log("=".repeat(70) + "\n");
 });

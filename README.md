@@ -44,28 +44,15 @@ Create a `.env` file:
 DEEPGRAM_API_KEY=your_api_key_here
 ```
 
-3. Run the application
+3. **Run the app**
 
-Start the development servers:
+**Development mode** (with hot reload):
 
 ```bash
 pnpm dev
 ```
 
-This will start:
-- Backend server on `http://localhost:3000`
-- Frontend dev server on `http://localhost:5173` (with proxy to backend)
-
-### 🌐 Open the App
-
-**Development:** [http://localhost:5173](http://localhost:5173) - Vite dev server with proxy to backend
-
-⚠️ **Note:** In this app, Vite proxies WebSocket/API requests to the backend (port 3000). You access the frontend directly at port 5173.
-
-
-## Production Build
-
-To build and run the production version:
+**Production mode** (build and serve)
 
 ```bash
 # Build the frontend
@@ -75,7 +62,9 @@ pnpm build
 pnpm start
 ```
 
-**Production:** [http://localhost:3000](http://localhost:3000) - Backend serves built frontend
+### 🌐 Open the App
+
+[http://localhost:3000](http://localhost:3000)
 
 ## How It Works
 

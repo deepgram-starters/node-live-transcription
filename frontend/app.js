@@ -160,10 +160,18 @@ function startTranscription() {
             console.error('Error from server:', message.error);
             showStatus(`Error: ${message.error.message}`, 'error');
 
-            // Auto-disconnect on error
-            setTimeout(() => {
-              stopTranscription();
-            }, 3000);
+            // Reset state immediately
+            isConnecting = false;
+            isConnected = false;
+
+            // Close websocket if still open
+            if (websocket) {
+              websocket.close(1000, 'Client closing due to error');
+              websocket = null;
+            }
+
+            // Reset UI immediately so user can try again
+            resetUI();
             break;
 
           default:
@@ -183,14 +191,22 @@ function startTranscription() {
       isConnecting = false;
       isConnected = false;
 
-      if (event.code === 1008) {
+      // Code 1011: Server error - don't overwrite the error message already shown
+      if (event.code === 1011) {
+        // Error message was already displayed via the 'Error' message type
+        // Just reset UI silently
+      } else if (event.code === 1008) {
         // Policy violation (e.g., invalid parameters)
         showStatus(`Connection closed: ${event.reason || 'Invalid request'}`, 'error');
-      } else if (event.code === 1000 || event.code === 1006) {
-        // Normal closure or abnormal closure
+      } else if (event.code === 1000) {
+        // Normal closure
         showStatus('Connection closed', 'info');
+      } else if (event.code === 1006) {
+        // Abnormal closure (connection dropped)
+        showStatus('Connection lost', 'warning');
       } else {
-        showStatus('Connection closed', 'info');
+        // Unknown close code
+        showStatus(`Connection closed unexpectedly (code: ${event.code})`, 'warning');
       }
 
       resetUI();

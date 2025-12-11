@@ -5,6 +5,7 @@ author = "Deepgram DX Team <devrel@deepgram.com> (https://developers.deepgram.co
 useCase = "Live"
 language = "JavaScript"
 framework = "Node"
+sdk = "4.11.2"
 
 [pre-build]
 command = "pnpm run install:all"
