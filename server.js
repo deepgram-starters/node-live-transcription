@@ -129,7 +129,6 @@ wss.on('connection', async (clientWs, request) => {
   // Validation: stream_url is required
   if (!streamUrl) {
     const error = {
-      type: 'Error',
       error: {
         type: 'ValidationError',
         code: 'INVALID_STREAM_URL',
@@ -149,7 +148,6 @@ wss.on('connection', async (clientWs, request) => {
   // Validate URL format
   if (!isValidStreamUrl(streamUrl)) {
     const error = {
-      type: 'Error',
       error: {
         type: 'ValidationError',
         code: 'INVALID_STREAM_URL',
@@ -181,7 +179,6 @@ wss.on('connection', async (clientWs, request) => {
 
     // Send clear error to client
     const errorResponse = {
-      type: 'Error',
       error: {
         type: 'ConnectionError',
         code: 'DEEPGRAM_CONNECTION_FAILED',
@@ -258,7 +255,6 @@ wss.on('connection', async (clientWs, request) => {
     deepgramConnection.on(LiveTranscriptionEvents.Error, (error) => {
       console.error('Deepgram error:', error);
       const errorMessage = {
-        type: 'Error',
         error: {
           type: 'DeepgramError',
           code: 'CONNECTION_FAILED',
@@ -296,7 +292,6 @@ wss.on('connection', async (clientWs, request) => {
     audioStream.on('error', (error) => {
       console.error('Audio stream error:', error);
       const errorMessage = {
-        type: 'Error',
         error: {
           type: 'StreamError',
           code: 'STREAM_UNREACHABLE',
@@ -325,7 +320,6 @@ wss.on('connection', async (clientWs, request) => {
     }
 
     const errorMessage = {
-      type: 'Error',
       error: {
         type: 'ConnectionError',
         code: errorCode,
