@@ -320,7 +320,7 @@ wss.on('connection', async (clientWs, request) => {
     let errorCode = 'CONNECTION_FAILED';
     if (error.message.includes('timeout')) {
       errorCode = 'STREAM_UNREACHABLE';
-    } else if (error.message.includes('fetch stream')) {
+    } else if (error.message.includes('connect to stream') || error.message.includes('fetch stream')) {
       errorCode = 'STREAM_UNREACHABLE';
     }
 
