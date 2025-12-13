@@ -100,7 +100,7 @@ function startTranscription() {
   const wsHost = window.location.host;
 
   const params = new URLSearchParams({
-    stream_url: streamUrl,
+    mode: 'binary',
     model: modelInput.value.trim() || 'nova-3',
     language: languageInput.value.trim() || 'en',
   });
@@ -119,11 +119,12 @@ function startTranscription() {
 
   try {
     websocket = new WebSocket(wsUrl);
+    websocket.binaryType = 'arraybuffer';
 
-    websocket.onopen = () => {
+    websocket.onopen = async () => {
       isConnecting = false;
       isConnected = true;
-      showStatus('Connected - streaming audio...', 'success');
+      showStatus('Connected - fetching stream...', 'success');
 
       // Update UI - switch from cancel to stop button
       cancelButton.hidden = true;
@@ -131,6 +132,44 @@ function startTranscription() {
       stopButton.disabled = false;
 
       clearTranscript();
+
+      // Frontend fetches the stream and sends binary to server
+      try {
+        showStatus('Streaming audio...', 'success');
+        const response = await fetch(streamUrl);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch stream: ${response.statusText}`);
+        }
+
+        const reader = response.body.getReader();
+
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            console.log('Stream ended');
+            showStatus('Stream ended', 'info');
+            stopTranscription();
+            break;
+          }
+
+          // Send binary audio chunk to server
+          if (websocket && websocket.readyState === WebSocket.OPEN && value) {
+            websocket.send(value.buffer);
+          }
+
+          // Stop if connection closed
+          if (!isConnected) {
+            reader.cancel();
+            break;
+          }
+        }
+      } catch (streamError) {
+        console.error('Stream fetch error:', streamError);
+        showStatus(`Stream error: ${streamError.message}`, 'error');
+        stopTranscription();
+      }
     };
 
     websocket.onmessage = (event) => {

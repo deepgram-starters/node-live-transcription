@@ -120,14 +120,18 @@ wss.on('connection', async (clientWs, request) => {
   // Parse query parameters
   const url = new URL(request.url, `http://${request.headers.host}`);
   const streamUrl = url.searchParams.get('stream_url');
+  const mode = url.searchParams.get('mode');
   const model = url.searchParams.get('model') || 'nova-3';
   const language = url.searchParams.get('language') || 'en';
 
   let deepgramConnection = null;
   let audioStreamRequest = null;
 
-  // Validation: stream_url is required
-  if (!streamUrl) {
+  // Determine mode: stream_url (server fetches) or binary (frontend sends audio)
+  const useBinaryMode = mode === 'binary';
+
+  // Validation: Either stream_url OR mode=binary is required
+  if (!streamUrl && !useBinaryMode) {
     const error = {
       error: {
         type: 'ValidationError',
@@ -145,8 +149,8 @@ wss.on('connection', async (clientWs, request) => {
     return;
   }
 
-  // Validate URL format
-  if (!isValidStreamUrl(streamUrl)) {
+  // Validate URL format if stream_url is provided
+  if (streamUrl && !isValidStreamUrl(streamUrl)) {
     const error = {
       error: {
         type: 'ValidationError',
@@ -211,6 +215,15 @@ wss.on('connection', async (clientWs, request) => {
           deepgramConnection.keepAlive();
         }
       }, 10000);
+
+      // If binary mode, notify client we're ready to receive audio
+      if (useBinaryMode) {
+        const readyMessage = {
+          type: 'Ready',
+          message: 'Ready to receive audio'
+        };
+        clientWs.send(JSON.stringify(readyMessage));
+      }
     });
 
     deepgramConnection.on(LiveTranscriptionEvents.Metadata, (data) => {
@@ -270,43 +283,56 @@ wss.on('connection', async (clientWs, request) => {
       clearInterval(keepAlive);
     });
 
-    // Fetch the audio stream
-    console.log(`Fetching audio stream: ${streamUrl}`);
-    const audioStream = await fetchAudioStream(streamUrl);
+    // If using stream_url mode, fetch the audio stream
+    // If using binary mode, we'll receive audio from frontend via WebSocket messages
+    if (streamUrl) {
+      console.log(`Fetching audio stream: ${streamUrl}`);
+      const audioStream = await fetchAudioStream(streamUrl);
 
-    // Pipe audio data to Deepgram
-    audioStream.on('data', (chunk) => {
-      if (deepgramConnection && deepgramConnection.getReadyState() === 1) {
-        deepgramConnection.send(chunk);
-      }
-    });
-
-    audioStream.on('end', () => {
-      console.log('Audio stream ended');
-      if (deepgramConnection) {
-        deepgramConnection.finish();
-      }
-      clientWs.close(1000, 'Stream ended');
-    });
-
-    audioStream.on('error', (error) => {
-      console.error('Audio stream error:', error);
-      const errorMessage = {
-        error: {
-          type: 'StreamError',
-          code: 'STREAM_UNREACHABLE',
-          message: `Failed to connect to audio stream: ${error.message}`,
-          details: {
-            stream_url: streamUrl,
-            error: error.message
-          }
+      // Pipe audio data to Deepgram
+      audioStream.on('data', (chunk) => {
+        if (deepgramConnection && deepgramConnection.getReadyState() === 1) {
+          deepgramConnection.send(chunk);
         }
-      };
-      clientWs.send(JSON.stringify(errorMessage));
-      clientWs.close(1011, 'Stream error');
-    });
+      });
 
-    audioStreamRequest = audioStream;
+      audioStream.on('end', () => {
+        console.log('Audio stream ended');
+        if (deepgramConnection) {
+          deepgramConnection.finish();
+        }
+        clientWs.close(1000, 'Stream ended');
+      });
+
+      audioStream.on('error', (error) => {
+        console.error('Audio stream error:', error);
+        const errorMessage = {
+          error: {
+            type: 'StreamError',
+            code: 'STREAM_UNREACHABLE',
+            message: `Failed to connect to audio stream: ${error.message}`,
+            details: {
+              stream_url: streamUrl,
+              error: error.message
+            }
+          }
+        };
+        clientWs.send(JSON.stringify(errorMessage));
+        clientWs.close(1011, 'Stream error');
+      });
+
+      audioStreamRequest = audioStream;
+    } else {
+      // Binary mode: Listen for audio data from frontend
+      console.log('Binary mode: waiting for audio from frontend');
+
+      clientWs.on('message', (data) => {
+        // Forward binary audio to Deepgram
+        if (deepgramConnection && deepgramConnection.getReadyState() === 1) {
+          deepgramConnection.send(data);
+        }
+      });
+    }
 
   } catch (error) {
     console.error('Error setting up transcription:', error);
