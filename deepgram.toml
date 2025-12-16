@@ -1,17 +1,23 @@
 [meta]
-  title = "Node Live Transcription Starter"
-  description = "Get started using Deepgram's Live Transcription with this Node demo app" 
-  author = "Deepgram DX Team <devrel@deepgram.com> (https://developers.deepgram.com)"
-  useCase = "Live"
-  language = "JavaScript"
-  framework = "Node"
+title = "Node Live Transcription Starter"
+description = "Get started using Deepgram's Live Transcription with this Node demo app"
+author = "Deepgram DX Team <devrel@deepgram.com> (https://developers.deepgram.com)"
+useCase = "Live"
+language = "JavaScript"
+framework = "Node"
+sdk = "4.11.2"
+
+[pre-build]
+command = "pnpm run install:all"
+message = "Dependencies installed (root + frontend)"
 
 [build]
-  command = "npm install"
+command = "pnpm build"
+message = "Build completed"
 
 [config]
-  sample = "sample.env"
-  output = ".env"
+sample = "sample.env"
+output = ".env"
 
 [post-build]
-  message = "Run `npm run start` to get up and running."
+message = "Run `pnpm start` to get up and running."

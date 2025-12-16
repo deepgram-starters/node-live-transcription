@@ -1,75 +1,98 @@
 # Node Live Transcription Starter
 
-[![Discord](https://dcbadge.vercel.app/api/server/xWRaCDBtW4?style=flat)](https://discord.gg/xWRaCDBtW4)
-
-This sample demonstrates interacting with the Deepgram live streaming API from a Node.js server.
-
-## What is Deepgram?
-
-[Deepgram’s](https://deepgram.com/) voice AI platform provides APIs for speech-to-text, text-to-speech, and full speech-to-speech voice agents. Over 200,000+ developers use Deepgram to build voice AI products and features.
+Live speech-to-text transcription demo using Deepgram's Listen API with Node.js backend and web frontend.
 
 ## Sign-up to Deepgram
 
 Before you start, it's essential to generate a Deepgram API key to use in this project. [Sign-up now for Deepgram and create an API key](https://console.deepgram.com/signup?jump=keys).
 
-## Quickstart
+## Prerequisites
 
-### Manual
+- [Deepgram API Key]((https://console.deepgram.com/signup?jump=keys)) (sign up for free)
+- Node.js 24 and pnpm 10+
+
+**Note:** This project uses strict supply chain security measures. npm and yarn will NOT work. See [SECURITY.md](SECURITY.md) for details.
+
+## Quickstart
 
 Follow these steps to get started with this starter application.
 
-#### Clone the repository
+1. Clone the repository
 
-Go to GitHub and [clone the repository](https://github.com/deepgram-starters/live-node-starter).
+Go to GitHub and [clone the repository](https://github.com/deepgram-starters/node-live-transcription).
 
-#### Install dependencies
+2. Install dependencies
 
-Install the project dependencies.
-
-```bash
-npm install
-```
-
-#### Edit the config file
-
-Copy the code from `sample.env` and create a new file called `.env`. Paste in the code and enter your API key you generated in the [Deepgram console](https://console.deepgram.com/).
-
-```js
-DEEPGRAM_API_KEY=%api_key%
-```
-
-#### Select branch
-
-The `main` branch demonstrates a native websockets implementation. Switch to the `socket-io` branch to see a version using socket.io.
+Install the project dependencies:
 
 ```bash
-git checkout socket-io
+# Option 1: Use the helper script (recommended)
+pnpm run install:all
+
+# Option 2: Manual two-step install
+pnpm install
+cd frontend && pnpm install && cd ..
 ```
 
-#### Run the application
+**Note:** Due to security settings (`ignore-scripts=true`), frontend dependencies must be installed separately. The `install:all` script handles both steps.
 
-The `start` script will run a web and API server concurrently. Once running, you can [access the application in your browser](http://localhost:3000/).
+2. **Set your API key**
+
+Create a `.env` file:
 
 ```bash
-npm run start
+DEEPGRAM_API_KEY=your_api_key_here
 ```
 
-## Issue Reporting
+3. **Run the app**
 
-If you have found a bug or if you have a feature request, please report them at this repository issues section. Please do not report security vulnerabilities on the public GitHub issue tracker. The [Security Policy](./SECURITY.md) details the procedure for contacting Deepgram.
+**Development mode** (with hot reload):
+
+```bash
+pnpm dev
+```
+
+**Production mode** (build and serve)
+
+```bash
+# Build the frontend
+pnpm build
+
+# Start the production server
+pnpm start
+```
+
+### 🌐 Open the App
+
+[http://localhost:3000](http://localhost:3000)
+
+## How It Works
+
+This application:
+1. Accepts a live audio stream URL via WebSocket connection
+2. Fetches the audio stream from the provided URL
+3. Sends binary audio data to Deepgram's live Speech-to-Text API
+4. Returns real-time transcription results to the client
 
 ## Getting Help
 
-We love to hear from you so if you have questions, comments or find a bug in the project, let us know! You can either:
-
-- [Open an issue in this repository](https://github.com/deepgram-starters/live-node-starter/issues/new)
+- [Open an issue in this repository](https://github.com/deepgram-starters/node-live-transcription/issues/new)
 - [Join the Deepgram Github Discussions Community](https://github.com/orgs/deepgram/discussions)
 - [Join the Deepgram Discord Community](https://discord.gg/xWRaCDBtW4)
 
-## Author
 
-[Deepgram](https://deepgram.com)
+## Contributing
+
+See our [Contributing Guidelines](./CONTRIBUTING.md) to learn about contributing to this project.
+
+## Code of Conduct
+
+This project follows the [Deepgram Code of Conduct](./CODE_OF_CONDUCT.md).
+
+## Security
+
+For security policy and procedures, see our [Security Policy](./SECURITY.md).
 
 ## License
 
-This project is licensed under the MIT license. See the [LICENSE](./LICENSE) file for more info.
+MIT - See [LICENSE](./LICENSE)

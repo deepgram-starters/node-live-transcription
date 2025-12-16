@@ -1,105 +1,90 @@
-
 # Contributing Guidelines
 
-:+1::tada: We :heart: contributions from everyone! :tada::+1:
+We welcome contributions! Before adding new functionality, open an issue first. Bug reports, fixes, and feedback are always appreciated.
 
-It is a good idea to reach out with an issue first if you plan to add any new functionality. Otherwise, bug reports, bug fixes and feedback is always appreciated. Check out the [Contributing Guidelines][contributing] for more information and please follow the [GitHub Flow][githubflow].
+Please take the time to review the [Code of Conduct](CODE_OF_CONDUCT.md), which all contributors are subject to on this project.
 
-![contributions welcome][contribadge]
+## Prerequisites
 
-The following is a set of guidelines for contributing to this project, which are hosted on GitHub. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
+**Required:**
+- **Node.js 24.0.0+**
+- **pnpm 10.0.0+** (npm and yarn will NOT work due to security configurations)
 
-Please take the time to review the [Code of Conduct][coc], which all contributors are subject to on this project.
+**Installation:**
+```bash
+# Install pnpm globally if not already installed
+npm install -g pnpm@10.0.0
 
-[I don't want to read this whole thing, I just have a question!!!](#i-dont-want-to-read-this-whole-thing-i-just-have-a-question)
+# Install all dependencies (recommended)
+pnpm run install:all
 
-[TOC]
+# Or install manually in two steps:
+pnpm install                           # Install root dependencies
+pnpm run install:frontend              # Install frontend dependencies
+```
+
+**Important:** This project uses strict security measures:
+- All lifecycle scripts are disabled (`ignore-scripts=true`)
+- Dependencies are pinned to exact versions
+- Using npm or yarn will fail intentionally
+- Frontend must be installed separately due to blocked postinstall scripts
+- Use `install:all` helper script for convenience
 
 ## Reporting Bugs
 
-This section guides you through submitting a bug report. Following these guidelines helps maintainers and the community understand your report :pencil:, reproduce the behavior :computer: :computer:, and find related reports :mag_right:.
+Before submitting a bug report:
+- Search existing issues and comment if one exists instead of creating a duplicate.
 
-Before creating bug reports [please check for other issues,](#before-submitting-a-bug-report) as you might find out that you don't need to create one. When you are creating a bug report, please [include as many details as possible](#how-do-i-submit-a-good-bug-report). Fill out the issue, and include any information it asks for to help us resolve issues faster.
-
-> **Note:** If you find a **Closed** issue that seems like it is the same thing that you're experiencing, open a new issue and include a link to the original issue in the body of your new one.
-
-### Before Submitting A Bug Report
-
-* **Perform a cursory search** to see if the problem has already been reported. If it has **and the issue is still open**, add a comment to the existing issue instead of opening a new one.
-
-### How Do I Submit A (Good) Bug Report?
-
-Bugs are tracked as GitHub issues. Create an issue and provide the following information as required or necessary.
-
-Explain the problem and include additional details to help maintainers reproduce the problem:
-
-* **Use a clear and descriptive title** for the issue to identify the problem.
-* **Describe the exact steps which reproduce the problem** in as many details as possible. For example, start by explaining how you started. When listing steps, **don't just say what you did, but explain how you did it**.
-* **Provide specific examples to demonstrate the steps**. Include links to files or copy/pasteable snippets, which you use in those examples. If you're providing snippets in the issue, use [Markdown code blocks][githubcodeblocks].
-* **Describe the behavior you observed after following the steps** and point out what exactly is the problem with that behavior.
-* **Explain which behavior you expected to see instead and why.**
-* **Include screenshots and animated GIFs** where possible. Show how you follow the described steps and clearly demonstrate the problem. You can use [this tool][licecap] to record GIFs on macOS and Windows, and [this tool][silentcast] on Linux.
-* **If the problem wasn't triggered by a specific action**, describe what you were doing before the problem happened and share more information using the guidelines below.
-* **Can you reliably reproduce the issue?** If not, provide details about how often the problem happens and under which conditions it normally happens.
-Include details about your configuration and environment:
+When submitting a bug report:
+- Use a clear title
+- List exact steps to reproduce the issue
+- Provide examples, links, or code snippets
+- Describe observed vs. expected behavior
+- Include screenshots or GIFs
+  - For macOS and Windows: [LICEcap](https://www.cockos.com/licecap/)
+  - For Linux: [Silentcast](https://github.com/colinkeenan/silentcast)
+- Mention if the issue is consistent or intermittent and share environment details
 
 ## Suggesting Enhancements
 
-This section guides you through submitting a suggestion, including completely new features and minor improvements to existing functionality. Following these guidelines helps maintainers and the community understand your suggestion :pencil: and find related suggestions :mag_right:.
+Before submitting an enhancement:
+- Search existing suggestions and comment on one instead of creating a duplicate.
 
-Before creating enhancement suggestions, please check [this list](#before-submitting-an-enhancement-suggestion) as you might find out that you don't need to create one. When you are creating an enhancement suggestion, please [include as many details as possible](#how-do-i-submit-a-good-enhancement-suggestion). Fill out [the required template][featurerequest], the information it asks for helps us resolve issues faster.
+When submitting an enhancement:
+- Use a clear title
+- Describe the enhancement step-by-step
+- Provide examples or code snippets
+- Explain current vs. expected behavior and its benefits
 
-### Before Submitting An Enhancement Suggestion
+## First Time Contributors
 
-* **Perform a cursory search** to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
-
-### How Do I Submit A (Good) Enhancement Suggestion?
-
-Enhancement suggestions are tracked as GitHub issues. Create an issue and provide the following information.
-
-* **Use a clear and descriptive title** for the issue to identify the suggestion.
-* **Provide a step-by-step description of the suggested enhancement** in as many details as possible.
-* **Provide specific examples to demonstrate the steps**. Include copy/pasteable snippets which you use in those examples, as [Markdown code blocks][githubcodeblocks].
-* **Describe the current behavior** and **explain which behavior you expected to see instead** and why.
-* **Explain why this enhancement would be useful** to most users.
-
-## Your First Code Contribution
-
-Unsure where to begin contributing? You can start by looking through these `beginner` and `help-wanted` issues on any of our projects. While not perfect, number of comments is a reasonable proxy for impact a given change will have.
+Check `beginner` and `help-wanted` issues to get started.
 
 ## Pull Requests
 
-Please follow these steps to have your contribution considered by the maintainers:
+Please follow these steps:
+1. Use the Pull Request template
+2. Follow the [Code of Conduct](CODE_OF_CONDUCT.md)
+3. Run security checks locally before submitting:
+   ```bash
+   pnpm run security-check:all
+   ```
+4. Ensure all [status checks](https://help.github.com/articles/about-status-checks/) pass before review
+   - Security scanning (if configured) must pass
+   - All dependencies must be pinned to exact versions
+   - Lockfile changes must be committed if dependencies updated
 
-1. Follow all instructions in [the template][pullrequest]
-2. Adhear the [Code of Conduct][coc]
-3. After you submit your pull request, verify that all [status checks][githubstatuschecks] are passing.
+Note: Reviewers may request additional changes before merging.
 
-While the prerequisites above must be satisfied prior to having your pull request reviewed, the reviewer(s) may ask you to complete additional design work, tests, or other changes before your pull request can be ultimately accepted.
+## Security Scanning
 
-# I don't want to read this whole thing I just have a question!!!
+Pull requests with dependency updates should be scanned for security vulnerabilities using Snyk. Review the [Security Policy](SECURITY.md) for detailed information about our security practices.
 
-You can join our community for any questions you might have:
+## Questions?
 
-* [Contact our Developer Relations Team][community]
-* [Reach out on Twitter][twitter]
-    * This Twitter is monitored by our Marketing and Developer Relations team, but not 24/7&mdash;please be patient!
+Connect with us through any of these channels:
+- [GitHub Discussions](https://github.com/orgs/deepgram/discussions)
+- [Discord](https://discord.gg/deepgram)
+- [Bluesky](https://bsky.app/profile/deepgram.com)
 
-Alternatively, you can raise an issue on the project.
-
-[contribadge]: https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat "Contributions Welcome"
-
-[coc]: CODE_OF_CONDUCT.md "Code of Conduct"
-[contributing]: CONTRIBUTING.md "Contributing"
-[license]: LICENSE "MIT License"
-[pullrequest]: PULL_REQUEST_TEMPLATE/PULL_REQUEST_TEMPLATE.md "Pull Request template"
-
-[community]: https://github.com/orgs/deepgram/discussions "Deepgram Community"
-[signup]: https://console.deepgram.com/signup "Deepgram Console"
-[twitter]: https://twitter.com/DeepgramAI "Deepgram on Twitter"
-
-[githubcodeblocks]: https://help.github.com/articles/markdown-basics/#multiple-lines "GitHub Markdown Code Blocks"
-[githubflow]: https://guides.github.com/introduction/flow/index.html "GitHub Flow"
-[githubstatuschecks]: https://help.github.com/articles/about-status-checks/ "GitHub Status Checks"
-[licecap]: https://www.cockos.com/licecap/ "LICEcap: animated screen captures"
-[silentcast]: https://github.com/colinkeenan/silentcast "Silentcast: silent mkv screencasts and animated gifs"
+For additional guidance, check out [GitHub Flow](https://guides.github.com/introduction/flow/index.html).
