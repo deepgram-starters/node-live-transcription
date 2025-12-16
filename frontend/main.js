@@ -100,7 +100,6 @@ function startTranscription() {
   const wsHost = window.location.host;
 
   const params = new URLSearchParams({
-    mode: 'binary',
     model: modelInput.value.trim() || 'nova-3',
     language: languageInput.value.trim() || 'en',
   });
