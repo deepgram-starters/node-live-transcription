@@ -19,7 +19,12 @@ Follow these steps to get started with this starter application.
 
 1. Clone the repository
 
-Go to GitHub and [clone the repository](https://github.com/deepgram-starters/node-live-transcription).
+Clone the repository with submodules (the frontend is a shared submodule):
+
+```bash
+git clone --recurse-submodules https://github.com/deepgram-starters/node-live-transcription.git
+cd node-live-transcription
+```
 
 2. Install dependencies
 
