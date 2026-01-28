@@ -22,7 +22,7 @@ if (!process.env.DEEPGRAM_API_KEY) {
 }
 
 const CONFIG = {
-  port: process.env.PORT || 3000,
+  port: process.env.PORT || 8080,
   host: process.env.HOST || '0.0.0.0',
   vitePort: process.env.VITE_PORT || 5173,
   isDevelopment: process.env.NODE_ENV === 'development',
@@ -42,20 +42,8 @@ const wss = new WebSocketServer({ noServer: true });
 // Track all active WebSocket connections for graceful shutdown
 const activeConnections = new Set();
 
-/**
- * Handles WebSocket upgrade requests at /live-stt/stream
- */
-server.on('upgrade', (request, socket, head) => {
-  const url = new URL(request.url, `http://${request.headers.host}`);
-
-  if (url.pathname === '/live-stt/stream') {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
-  } else {
-    socket.destroy();
-  }
-});
+// Store viteProxy for WebSocket upgrade handling in dev mode
+let viteProxy = null;
 
 /**
  * Handles new WebSocket connections
@@ -233,18 +221,41 @@ wss.on('connection', async (clientWs, request) => {
  * IMPORTANT: This MUST come AFTER your WebSocket routes to avoid conflicts
  */
 if (CONFIG.isDevelopment) {
-  // Development: Proxy to Vite dev server
-  app.use(
-    "/",
-    createProxyMiddleware({
-      target: `http://localhost:${CONFIG.vitePort}`,
-      changeOrigin: true,
-      ws: true, // Enable WebSocket proxying for Vite HMR (Hot Module Reload)
-    })
-  );
+  console.log(`Development mode: Proxying to Vite dev server on port ${CONFIG.vitePort}`);
+
+  // Create proxy middleware for HTTP requests only (no WebSocket)
+  viteProxy = createProxyMiddleware({
+    target: `http://localhost:${CONFIG.vitePort}`,
+    changeOrigin: true,
+    ws: false, // Disable automatic WebSocket proxying - we'll handle it manually
+  });
+
+  app.use('/', viteProxy);
+
+  // Manually handle WebSocket upgrades at the server level
+  // This allows us to selectively proxy based on path
+  server.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url, 'http://localhost').pathname;
+
+    console.log(`WebSocket upgrade request for: ${pathname}`);
+
+    // Backend handles /live-stt/stream WebSocket connections directly
+    if (pathname === '/live-stt/stream') {
+      console.log('Backend handling /live-stt/stream WebSocket');
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+      return;
+    }
+
+    // Forward all other WebSocket connections (Vite HMR) to Vite
+    console.log('Proxying WebSocket to Vite');
+    viteProxy.upgrade(request, socket, head);
+  });
 } else {
-  // Production: Serve static files from frontend/dist
-  const distPath = path.join(__dirname, "frontend", "dist");
+  console.log('Production mode: Serving static files');
+
+  const distPath = path.join(__dirname, 'frontend', 'dist');
   app.use(express.static(distPath));
 }
 
