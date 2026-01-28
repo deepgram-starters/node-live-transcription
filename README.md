@@ -79,6 +79,23 @@ This application:
 3. Sends binary audio data to Deepgram's live Speech-to-Text API
 4. Returns real-time transcription results to the client
 
+## Makefile Commands
+
+This project includes a Makefile for framework-agnostic operations:
+
+```bash
+make help              # Show all available commands
+make init              # Initialize submodules and install dependencies
+make dev               # Start development servers
+make build             # Build frontend for production
+make start             # Start production server
+make update            # Update submodules to latest
+make clean             # Remove node_modules and build artifacts
+make status            # Show git and submodule status
+```
+
+Use `make` commands for a consistent experience regardless of package manager.
+
 ## Getting Help
 
 - [Open an issue in this repository](https://github.com/deepgram-starters/node-live-transcription/issues/new)
