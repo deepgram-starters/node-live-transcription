@@ -1,11 +1,19 @@
+/**
+ * Node Live Transcription Starter - Backend Server
+ *
+ * Simple WebSocket proxy to Deepgram's Live Transcription API.
+ * Forwards all messages (JSON and binary) bidirectionally between client and Deepgram.
+ */
+
+import { WebSocketServer, WebSocket } from 'ws';
 import express from 'express';
-import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
-import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
+import toml from 'toml';
 
 // Load environment variables
 dotenv.config();
@@ -21,19 +29,15 @@ if (!process.env.DEEPGRAM_API_KEY) {
   process.exit(1);
 }
 
+// Configuration
 const CONFIG = {
-  port: process.env.PORT || 3000,
+  deepgramApiKey: process.env.DEEPGRAM_API_KEY,
+  deepgramSttUrl: 'wss://api.deepgram.com/v1/listen',
+  port: process.env.PORT || 8080,
   host: process.env.HOST || '0.0.0.0',
   vitePort: process.env.VITE_PORT || 5173,
   isDevelopment: process.env.NODE_ENV === 'development',
 };
-
-// Validate API Key exists
-if (!process.env.DEEPGRAM_API_KEY) {
-  console.error('ERROR: DEEPGRAM_API_KEY environment variable is required');
-  console.error('Please copy sample.env to .env and add your API key');
-  process.exit(1);
-}
 
 const app = express();
 const server = createServer(app);
@@ -42,212 +46,182 @@ const wss = new WebSocketServer({ noServer: true });
 // Track all active WebSocket connections for graceful shutdown
 const activeConnections = new Set();
 
-/**
- * Handles WebSocket upgrade requests at /live-stt/stream
- */
-server.on('upgrade', (request, socket, head) => {
-  const url = new URL(request.url, `http://${request.headers.host}`);
+// Store viteProxy for WebSocket upgrade handling in dev mode
+let viteProxy = null;
 
-  if (url.pathname === '/live-stt/stream') {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
+/**
+ * Metadata endpoint - returns application metadata from deepgram.toml
+ */
+app.get('/metadata', (req, res) => {
+  try {
+    const tomlPath = path.join(__dirname, 'deepgram.toml');
+    const tomlContent = fs.readFileSync(tomlPath, 'utf-8');
+    const config = toml.parse(tomlContent);
+
+    if (!config.meta) {
+      return res.status(500).json({
+        error: 'INTERNAL_SERVER_ERROR',
+        message: 'Missing [meta] section in deepgram.toml'
+      });
+    }
+
+    res.json(config.meta);
+  } catch (error) {
+    console.error('Error reading metadata:', error);
+    res.status(500).json({
+      error: 'INTERNAL_SERVER_ERROR',
+      message: 'Failed to read metadata from deepgram.toml'
     });
-  } else {
-    socket.destroy();
   }
 });
 
 /**
- * Handles new WebSocket connections
+ * WebSocket proxy handler
+ * Forwards all messages bidirectionally between client and Deepgram
  */
 wss.on('connection', async (clientWs, request) => {
-  console.log('Client connected to /live-stt/stream');
+  console.log('Client connected to /stt/stream');
   activeConnections.add(clientWs);
 
-  // Parse query parameters
+  // Parse query parameters from client request
   const url = new URL(request.url, `http://${request.headers.host}`);
   const model = url.searchParams.get('model') || 'nova-3';
   const language = url.searchParams.get('language') || 'en';
+  const smart_format = url.searchParams.get('smart_format') || 'true';
+  const encoding = url.searchParams.get('encoding') || 'linear16';
+  const sample_rate = url.searchParams.get('sample_rate') || '16000';
+  const channels = url.searchParams.get('channels') || '1';
 
-  let deepgramConnection = null;
+  // Build Deepgram WebSocket URL with query parameters
+  const deepgramUrl = new URL(CONFIG.deepgramSttUrl);
+  deepgramUrl.searchParams.set('model', model);
+  deepgramUrl.searchParams.set('language', language);
+  deepgramUrl.searchParams.set('smart_format', smart_format);
+  deepgramUrl.searchParams.set('encoding', encoding);
+  deepgramUrl.searchParams.set('sample_rate', sample_rate);
+  deepgramUrl.searchParams.set('channels', channels);
 
-  // First try-catch: Create Deepgram connection
-  try {
-    const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
+  console.log(`Connecting to Deepgram STT: model=${model}, language=${language}, encoding=${encoding}, sample_rate=${sample_rate}, channels=${channels}`);
 
-    deepgramConnection = deepgram.listen.live({
-      model,
-      language,
-      smart_format: true,
-    });
-  } catch (error) {
-    console.error('Error creating Deepgram connection:', error);
+  // Create WebSocket connection to Deepgram
+  const deepgramWs = new WebSocket(deepgramUrl.toString(), {
+    headers: {
+      'Authorization': `Token ${CONFIG.deepgramApiKey}`
+    }
+  });
 
-    // Send clear error to client
-    const errorResponse = {
-      error: {
-        type: 'ConnectionError',
-        code: 'DEEPGRAM_CONNECTION_FAILED',
-        message: 'Failed to establish connection to Deepgram. Please check your API key.',
-        details: {
-          reason: error.message,
-          hint: 'Verify DEEPGRAM_API_KEY is set correctly in .env'
-        }
-      }
-    };
+  let clientMessageCount = 0;
+  let deepgramMessageCount = 0;
 
-    clientWs.send(JSON.stringify(errorResponse));
-    clientWs.close(1011, 'Deepgram connection failed');
-    activeConnections.delete(clientWs);
-    return;
-  }
+  // Forward Deepgram messages to client
+  deepgramWs.on('message', (data, isBinary) => {
+    deepgramMessageCount++;
+    if (deepgramMessageCount % 10 === 0 || !isBinary) {
+      console.log(`← Deepgram message #${deepgramMessageCount} (binary: ${isBinary}, size: ${data.length})`);
+    }
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.send(data, { binary: isBinary });
+    }
+  });
 
-  let keepAlive;
+  // Forward client messages to Deepgram
+  clientWs.on('message', (data, isBinary) => {
+    clientMessageCount++;
+    if (clientMessageCount % 100 === 0 || !isBinary) {
+      console.log(`→ Client message #${clientMessageCount} (binary: ${isBinary}, size: ${data.byteLength || data.length})`);
+    }
+    if (deepgramWs.readyState === WebSocket.OPEN) {
+      deepgramWs.send(data, { binary: isBinary });
+    }
+  });
 
-  // Second try-catch: Set up audio streaming
-  try {
+  // Handle Deepgram connection open
+  deepgramWs.on('open', () => {
+    console.log('✓ Connected to Deepgram STT API');
+  });
 
-    // Set up Deepgram event listeners
-    deepgramConnection.on(LiveTranscriptionEvents.Open, () => {
-      console.log('Deepgram connection opened');
+  // Handle Deepgram errors
+  deepgramWs.on('error', (error) => {
+    console.error('Deepgram WebSocket error:', error);
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.close(1011, 'Deepgram connection error');
+    }
+  });
 
-      // Start keepalive
-      keepAlive = setInterval(() => {
-        if (deepgramConnection.getReadyState() === 1) {
-          deepgramConnection.keepAlive();
-        }
-      }, 10000);
-
-      // Notify client we're ready to receive audio
-      const readyMessage = {
-        type: 'Ready',
-        message: 'Ready to receive audio'
-      };
-      clientWs.send(JSON.stringify(readyMessage));
-    });
-
-    deepgramConnection.on(LiveTranscriptionEvents.Metadata, (data) => {
-      console.log('Deepgram metadata received');
-
-      // Pass through Deepgram's metadata to client
-      const metadata = {
-        type: 'Metadata',
-        request_id: data.request_id,
-        model_info: data.model_info,
-        created: data.created
-      };
-      clientWs.send(JSON.stringify(metadata));
-    });
-
-    deepgramConnection.on(LiveTranscriptionEvents.Transcript, (data) => {
-      // Extract transcript from Deepgram response
-      const transcript = data.channel?.alternatives?.[0]?.transcript || '';
-      const isFinal = data.is_final || false;
-      const speechFinal = data.speech_final || false;
-
-      if (transcript) {
-        const result = {
-          type: 'Results',
-          transcript,
-          is_final: isFinal,
-          speech_final: speechFinal,
-          confidence: data.channel?.alternatives?.[0]?.confidence,
-          words: data.channel?.alternatives?.[0]?.words || [],
-          duration: data.duration,
-          start: data.start,
-          metadata: {
-            model: model,
-            language: language
-          }
-        };
-
-        clientWs.send(JSON.stringify(result));
-      }
-    });
-
-    deepgramConnection.on(LiveTranscriptionEvents.Error, (error) => {
-      console.error('Deepgram error:', error);
-      const errorMessage = {
-        error: {
-          type: 'DeepgramError',
-          code: 'CONNECTION_FAILED',
-          message: error.message || 'Deepgram connection error',
-          details: error
-        }
-      };
-      clientWs.send(JSON.stringify(errorMessage));
-    });
-
-    deepgramConnection.on(LiveTranscriptionEvents.Close, () => {
-      console.log('Deepgram connection closed');
-      clearInterval(keepAlive);
-    });
-
-    // Listen for binary audio data from frontend and forward to Deepgram
-    clientWs.on('message', (data) => {
-      if (deepgramConnection && deepgramConnection.getReadyState() === 1) {
-        deepgramConnection.send(data);
-      }
-    });
-
-  } catch (error) {
-    console.error('Error setting up transcription:', error);
-
-    const errorMessage = {
-      error: {
-        type: 'ConnectionError',
-        code: 'CONNECTION_FAILED',
-        message: error.message
-      }
-    };
-
-    clientWs.send(JSON.stringify(errorMessage));
-    clientWs.close(1011, 'Setup error');
-    activeConnections.delete(clientWs);
-    return;
-  }
+  // Handle Deepgram connection close
+  deepgramWs.on('close', (code, reason) => {
+    console.log(`Deepgram connection closed: ${code} ${reason}`);
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.close(code, reason.toString());
+    }
+  });
 
   // Handle client disconnect
-  clientWs.on('close', () => {
-    console.log('Client disconnected');
-
-    // Clean up Deepgram connection
-    if (deepgramConnection) {
-      deepgramConnection.finish();
-      deepgramConnection.removeAllListeners();
+  clientWs.on('close', (code, reason) => {
+    console.log(`Client disconnected: ${code} ${reason}`);
+    if (deepgramWs.readyState === WebSocket.OPEN) {
+      deepgramWs.close(1000, 'Client disconnected');
     }
-
     activeConnections.delete(clientWs);
   });
 
+  // Handle client errors
   clientWs.on('error', (error) => {
     console.error('Client WebSocket error:', error);
+    if (deepgramWs.readyState === WebSocket.OPEN) {
+      deepgramWs.close(1011, 'Client error');
+    }
   });
 });
-
 
 /**
  * In development: Proxy all requests to Vite dev server for hot reload
  * In production: Serve pre-built static files from frontend/dist
  *
- * IMPORTANT: This MUST come AFTER your WebSocket routes to avoid conflicts
+ * IMPORTANT: This MUST come AFTER your API routes to avoid conflicts
  */
 if (CONFIG.isDevelopment) {
-  // Development: Proxy to Vite dev server
-  app.use(
-    "/",
-    createProxyMiddleware({
-      target: `http://localhost:${CONFIG.vitePort}`,
-      changeOrigin: true,
-      ws: true, // Enable WebSocket proxying for Vite HMR (Hot Module Reload)
-    })
-  );
+  console.log(`Development mode: Proxying to Vite dev server on port ${CONFIG.vitePort}`);
+
+  // Create proxy middleware for HTTP requests only (no WebSocket)
+  viteProxy = createProxyMiddleware({
+    target: `http://localhost:${CONFIG.vitePort}`,
+    changeOrigin: true,
+    ws: false, // Disable automatic WebSocket proxying - we'll handle it manually
+  });
+
+  app.use('/', viteProxy);
+
+  // Manually handle WebSocket upgrades at the server level
+  // This allows us to selectively proxy based on path
+  server.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url, 'http://localhost').pathname;
+
+    console.log(`WebSocket upgrade request for: ${pathname}`);
+
+    // Backend handles /stt/stream WebSocket connections directly
+    if (pathname === '/stt/stream') {
+      console.log('Backend handling /stt/stream WebSocket');
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+      return;
+    }
+
+    // Forward all other WebSocket connections (Vite HMR) to Vite
+    console.log('Proxying WebSocket to Vite');
+    viteProxy.upgrade(request, socket, head);
+  });
 } else {
-  // Production: Serve static files from frontend/dist
-  const distPath = path.join(__dirname, "frontend", "dist");
+  console.log('Production mode: Serving static files');
+
+  const distPath = path.join(__dirname, 'frontend', 'dist');
   app.use(express.static(distPath));
 }
 
+/**
+ * Graceful shutdown handler
+ */
 function gracefulShutdown(signal) {
   console.log(`\n${signal} signal received: starting graceful shutdown...`);
 
@@ -295,10 +269,11 @@ process.on('unhandledRejection', (reason, promise) => {
   gracefulShutdown('UNHANDLED_REJECTION');
 });
 
+// Start server
 server.listen(CONFIG.port, CONFIG.host, () => {
   console.log("\n" + "=".repeat(70));
   console.log(`🚀 Live STT Backend Server running at http://localhost:${CONFIG.port}`);
-  console.log(`📡 WebSocket endpoint: ws://localhost:${CONFIG.port}/live-stt/stream`);
+  console.log(`📡 WebSocket endpoint: ws://localhost:${CONFIG.port}/stt/stream`);
   if (CONFIG.isDevelopment) {
     console.log(`📡 Proxying frontend from Vite dev server on port ${CONFIG.vitePort}`);
     console.log(`\n⚠️  Open your browser to http://localhost:${CONFIG.port}`);
