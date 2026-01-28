@@ -1,6 +1,12 @@
 # Dependencies
 node_modules/
 frontend/node_modules/
+.pnp
+.pnp.js
+
+# Lock files (project uses pnpm)
+package-lock.json
+yarn.lock
 
 # Environment variables
 .env
@@ -12,6 +18,7 @@ frontend/node_modules/
 # Build outputs
 frontend/dist/
 dist/
+build/
 
 # Logs
 *.log
