@@ -1,11 +1,12 @@
 [meta]
-title = "Node Live Transcription Starter"
+title = "Node Live Transcription"
 description = "Get started using Deepgram's Live Transcription with this Node demo app"
 author = "Deepgram DX Team <devrel@deepgram.com> (https://developers.deepgram.com)"
 useCase = "Live STT"
 language = "JavaScript"
 framework = "Node"
 sdk = "4.11.2"
+repository = "https://github.com/deepgram-starters/node-live-transcription"
 
 [pre-build]
 command = "pnpm run install:all"
