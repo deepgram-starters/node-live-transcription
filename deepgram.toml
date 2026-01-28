@@ -16,7 +16,7 @@ message = "Dependencies installed (root + frontend)"
 command = "pnpm build"
 message = "Build completed"
 
-[config]
+[build.config]
 sample = "sample.env"
 output = ".env"
 
