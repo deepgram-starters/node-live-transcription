@@ -50,7 +50,7 @@ const activeConnections = new Set();
 let viteProxy = null;
 
 /**
- * Metadata endpoint (standardized) - required for standardization compliance
+ * Metadata endpoint - required for standardization compliance
  */
 app.get('/api/metadata', (req, res) => {
   res.json({
@@ -60,32 +60,6 @@ app.get('/api/metadata', (req, res) => {
     framework: "Node",
     version: "1.0.0"
   });
-});
-
-/**
- * Legacy metadata endpoint - returns application metadata from deepgram.toml
- */
-app.get('/metadata', (req, res) => {
-  try {
-    const tomlPath = path.join(__dirname, 'deepgram.toml');
-    const tomlContent = fs.readFileSync(tomlPath, 'utf-8');
-    const config = toml.parse(tomlContent);
-
-    if (!config.meta) {
-      return res.status(500).json({
-        error: 'INTERNAL_SERVER_ERROR',
-        message: 'Missing [meta] section in deepgram.toml'
-      });
-    }
-
-    res.json(config.meta);
-  } catch (error) {
-    console.error('Error reading metadata:', error);
-    res.status(500).json({
-      error: 'INTERNAL_SERVER_ERROR',
-      message: 'Failed to read metadata from deepgram.toml'
-    });
-  }
 });
 
 /**
