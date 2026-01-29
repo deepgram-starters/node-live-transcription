@@ -46,3 +46,6 @@ coverage/
 # Temporary files
 *.tmp
 .cache/
+
+# Local Deepgram working directory
+.deepgram/

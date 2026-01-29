@@ -35,7 +35,7 @@ const CONFIG = {
   deepgramSttUrl: 'wss://api.deepgram.com/v1/listen',
   port: process.env.PORT || 8080,
   host: process.env.HOST || '0.0.0.0',
-  vitePort: process.env.VITE_PORT || 5173,
+  vitePort: process.env.VITE_PORT || 8081,
   isDevelopment: process.env.NODE_ENV === 'development',
 };
 
@@ -50,7 +50,20 @@ const activeConnections = new Set();
 let viteProxy = null;
 
 /**
- * Metadata endpoint - returns application metadata from deepgram.toml
+ * Metadata endpoint (standardized) - required for standardization compliance
+ */
+app.get('/api/metadata', (req, res) => {
+  res.json({
+    name: "Node Live Transcription Starter",
+    feature: "live-transcription",
+    language: "JavaScript",
+    framework: "Node",
+    version: "1.0.0"
+  });
+});
+
+/**
+ * Legacy metadata endpoint - returns application metadata from deepgram.toml
  */
 app.get('/metadata', (req, res) => {
   try {

@@ -69,7 +69,7 @@ pnpm start
 
 ### 🌐 Open the App
 
-[http://localhost:3000](http://localhost:3000)
+[http://localhost:8080](http://localhost:8080)
 
 ## How It Works
 
