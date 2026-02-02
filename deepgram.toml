@@ -2,23 +2,45 @@
 title = "Node Live Transcription"
 description = "Get started using Deepgram's Live Transcription with this Node demo app"
 author = "Deepgram DX Team <devrel@deepgram.com> (https://developers.deepgram.com)"
-useCase = "Live STT"
+repository = "https://github.com/deepgram-starters/node-live-transcription"
+useCase = "live-transcription"
 language = "JavaScript"
 framework = "Node"
-sdk = "4.11.2"
-repository = "https://github.com/deepgram-starters/node-live-transcription"
+sdk = "N/A"
 
-[pre-build]
-command = "make init"
-message = "Dependencies installed (root + frontend)"
+[check]
+command = ["command -v git", "command -v node", "command -v pnpm"]
+message = "Prerequisites checked"
 
-[build]
-command = "make build"
-message = "Build completed"
+[install.pre]
+command = "git submodule update --init --recursive"
+message = "Submodules initialized"
 
-[build.config]
+[install]
+command = ["corepack pnpm install", "cd frontend && corepack pnpm install"]
+message = "Dependencies installed"
+
+[install.config]
 sample = "sample.env"
 output = ".env"
 
-[post-build]
-message = "Run `pnpm start` to get up and running."
+[start.pre]
+command = ["test -f .env || echo 'Error: .env file not found'", "test -d frontend/.git || echo 'Error: Frontend submodule not initialized'"]
+message = "Pre-flight checks complete"
+
+[start]
+command = ["node --no-deprecation server.js", "cd frontend && pnpm run dev -- --port 8080 --no-open"]
+parallel = true
+message = "Application running on http://localhost:8080"
+
+[update]
+command = "git submodule update --remote --merge"
+message = "Submodules updated"
+
+[clean]
+command = ["rm -rf node_modules", "rm -rf frontend/node_modules", "rm -rf frontend/dist"]
+message = "Build artifacts cleaned"
+
+[test]
+command = "echo 'No tests configured'"
+message = "Tests skipped"

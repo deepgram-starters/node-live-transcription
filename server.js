@@ -8,7 +8,7 @@
 const { WebSocketServer, WebSocket } = require('ws');
 const express = require('express');
 const { createServer } = require('http');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const cors = require('cors');
 require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
@@ -26,10 +26,9 @@ if (!process.env.DEEPGRAM_API_KEY) {
 const CONFIG = {
   deepgramApiKey: process.env.DEEPGRAM_API_KEY,
   deepgramSttUrl: 'wss://api.deepgram.com/v1/listen',
-  port: process.env.PORT || 8080,
+  port: process.env.PORT || 8081,
   host: process.env.HOST || '0.0.0.0',
-  vitePort: process.env.VITE_PORT || 8081,
-  isDevelopment: process.env.NODE_ENV === 'development',
+  frontendPort: process.env.FRONTEND_PORT || 8080,
 };
 
 const app = express();
@@ -39,8 +38,14 @@ const wss = new WebSocketServer({ noServer: true });
 // Track all active WebSocket connections for graceful shutdown
 const activeConnections = new Set();
 
-// Store viteProxy for WebSocket upgrade handling in dev mode
-let viteProxy = null;
+// Enable CORS for frontend
+app.use(cors({
+  origin: [
+    `http://localhost:${CONFIG.frontendPort}`,
+    `http://127.0.0.1:${CONFIG.frontendPort}`
+  ],
+  credentials: true
+}));
 
 /**
  * Metadata endpoint - required for standardization compliance
@@ -168,49 +173,26 @@ wss.on('connection', async (clientWs, request) => {
 });
 
 /**
- * In development: Proxy all requests to Vite dev server for hot reload
- * In production: Serve pre-built static files from frontend/dist
- *
- * IMPORTANT: This MUST come AFTER your API routes to avoid conflicts
+ * Handle WebSocket upgrade requests for /stt/stream
  */
-if (CONFIG.isDevelopment) {
-  console.log(`Development mode: Proxying to Vite dev server on port ${CONFIG.vitePort}`);
+server.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url, 'http://localhost').pathname;
 
-  // Create proxy middleware for HTTP requests only (no WebSocket)
-  viteProxy = createProxyMiddleware({
-    target: `http://localhost:${CONFIG.vitePort}`,
-    changeOrigin: true,
-    ws: false, // Disable automatic WebSocket proxying - we'll handle it manually
-  });
+  console.log(`WebSocket upgrade request for: ${pathname}`);
 
-  app.use('/', viteProxy);
+  // Backend handles /stt/stream WebSocket connections directly
+  if (pathname === '/stt/stream') {
+    console.log('Backend handling /stt/stream WebSocket');
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+    return;
+  }
 
-  // Manually handle WebSocket upgrades at the server level
-  // This allows us to selectively proxy based on path
-  server.on('upgrade', (request, socket, head) => {
-    const pathname = new URL(request.url, 'http://localhost').pathname;
-
-    console.log(`WebSocket upgrade request for: ${pathname}`);
-
-    // Backend handles /stt/stream WebSocket connections directly
-    if (pathname === '/stt/stream') {
-      console.log('Backend handling /stt/stream WebSocket');
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
-      });
-      return;
-    }
-
-    // Forward all other WebSocket connections (Vite HMR) to Vite
-    console.log('Proxying WebSocket to Vite');
-    viteProxy.upgrade(request, socket, head);
-  });
-} else {
-  console.log('Production mode: Serving static files');
-
-  const distPath = path.join(__dirname, 'frontend', 'dist');
-  app.use(express.static(distPath));
-}
+  // Unknown WebSocket path - reject
+  console.log(`Unknown WebSocket path: ${pathname}`);
+  socket.destroy();
+});
 
 /**
  * Graceful shutdown handler
@@ -265,13 +247,10 @@ process.on('unhandledRejection', (reason, promise) => {
 // Start server
 server.listen(CONFIG.port, CONFIG.host, () => {
   console.log("\n" + "=".repeat(70));
-  console.log(`🚀 Live STT Backend Server running at http://localhost:${CONFIG.port}`);
+  console.log(`🚀 Backend API Server running at http://localhost:${CONFIG.port}`);
+  console.log(`📡 CORS enabled for http://localhost:${CONFIG.frontendPort}`);
   console.log(`📡 WebSocket endpoint: ws://localhost:${CONFIG.port}/stt/stream`);
-  if (CONFIG.isDevelopment) {
-    console.log(`📡 Proxying frontend from Vite dev server on port ${CONFIG.vitePort}`);
-    console.log(`\n⚠️  Open your browser to http://localhost:${CONFIG.port}`);
-  } else {
-    console.log(`📦 Serving built frontend from frontend/dist`);
-  }
+  console.log("");
+  console.log(`💡 Frontend should be running on http://localhost:${CONFIG.frontendPort}`);
   console.log("=".repeat(70) + "\n");
 });
