@@ -4,9 +4,10 @@ description = "Get started using Deepgram's Live Transcription with this Node de
 author = "Deepgram DX Team <devrel@deepgram.com> (https://developers.deepgram.com)"
 repository = "https://github.com/deepgram-starters/node-live-transcription"
 useCase = "live-transcription"
-language = "JavaScript"
-framework = "Node"
+language = "javascript"
+framework = "node"
 sdk = "N/A"
+tags = ["live-transcription", "live-stt", "real-time-transcription", "real-time-asr", "streaming-transcription", "live-speech-to-text", "javascript", "node"]
 
 [check]
 command = ["command -v git", "command -v node", "command -v pnpm"]
