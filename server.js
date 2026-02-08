@@ -3,6 +3,10 @@
  *
  * Simple WebSocket proxy to Deepgram's Live Transcription API.
  * Forwards all messages (JSON and binary) bidirectionally between client and Deepgram.
+ *
+ * Routes:
+ *   GET  /api/metadata             - Project metadata from deepgram.toml
+ *   WS   /api/live-transcription   - WebSocket proxy to Deepgram STT
  */
 
 const { WebSocketServer, WebSocket } = require('ws');
@@ -28,7 +32,6 @@ const CONFIG = {
   deepgramSttUrl: 'wss://api.deepgram.com/v1/listen',
   port: process.env.PORT || 8081,
   host: process.env.HOST || '0.0.0.0',
-  frontendPort: process.env.FRONTEND_PORT || 8080,
 };
 
 const app = express();
@@ -38,14 +41,8 @@ const wss = new WebSocketServer({ noServer: true });
 // Track all active WebSocket connections for graceful shutdown
 const activeConnections = new Set();
 
-// Enable CORS for frontend
-app.use(cors({
-  origin: [
-    `http://localhost:${CONFIG.frontendPort}`,
-    `http://127.0.0.1:${CONFIG.frontendPort}`
-  ],
-  credentials: true
-}));
+// Enable CORS
+app.use(cors());
 
 /**
  * Metadata endpoint - required for standardization compliance
@@ -78,7 +75,7 @@ app.get('/api/metadata', (req, res) => {
  * Forwards all messages bidirectionally between client and Deepgram
  */
 wss.on('connection', async (clientWs, request) => {
-  console.log('Client connected to /stt/stream');
+  console.log('Client connected to /api/live-transcription');
   activeConnections.add(clientWs);
 
   // Parse query parameters from client request
@@ -173,16 +170,16 @@ wss.on('connection', async (clientWs, request) => {
 });
 
 /**
- * Handle WebSocket upgrade requests for /stt/stream
+ * Handle WebSocket upgrade requests for /api/live-transcription
  */
 server.on('upgrade', (request, socket, head) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
 
   console.log(`WebSocket upgrade request for: ${pathname}`);
 
-  // Backend handles /stt/stream WebSocket connections directly
-  if (pathname === '/stt/stream') {
-    console.log('Backend handling /stt/stream WebSocket');
+  // Backend handles /api/live-transcription WebSocket connections directly
+  if (pathname === '/api/live-transcription') {
+    console.log('Backend handling /api/live-transcription WebSocket');
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request);
     });
@@ -248,9 +245,8 @@ process.on('unhandledRejection', (reason, promise) => {
 server.listen(CONFIG.port, CONFIG.host, () => {
   console.log("\n" + "=".repeat(70));
   console.log(`🚀 Backend API Server running at http://localhost:${CONFIG.port}`);
-  console.log(`📡 CORS enabled for http://localhost:${CONFIG.frontendPort}`);
-  console.log(`📡 WebSocket endpoint: ws://localhost:${CONFIG.port}/stt/stream`);
   console.log("");
-  console.log(`💡 Frontend should be running on http://localhost:${CONFIG.frontendPort}`);
+  console.log(`📡 WS   /api/live-transcription`);
+  console.log(`📡 GET  /api/metadata`);
   console.log("=".repeat(70) + "\n");
 });
