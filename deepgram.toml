@@ -42,6 +42,11 @@ message = "Submodules updated"
 command = ["rm -rf node_modules", "rm -rf frontend/node_modules", "rm -rf frontend/dist"]
 message = "Build artifacts cleaned"
 
+# Eject frontend and contracts submodules for standalone development
+[eject-frontend]
+command = "make eject-frontend"
+message = "Frontend ejected successfully"
+
 [test]
 command = "echo 'No tests configured'"
 message = "Tests skipped"
