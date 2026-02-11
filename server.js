@@ -37,46 +37,13 @@ const CONFIG = {
 };
 
 // ============================================================================
-// SESSION AUTH - JWT tokens with page nonce for production security
+// SESSION AUTH - JWT tokens for production security
 // ============================================================================
 
 const SESSION_SECRET =
   process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-const REQUIRE_NONCE = !!process.env.SESSION_SECRET;
 
-const sessionNonces = new Map();
-const NONCE_TTL_MS = 5 * 60 * 1000;
 const JWT_EXPIRY = '1h';
-
-function generateNonce() {
-  const nonce = crypto.randomBytes(16).toString('hex');
-  sessionNonces.set(nonce, Date.now() + NONCE_TTL_MS);
-  return nonce;
-}
-
-function consumeNonce(nonce) {
-  const expiry = sessionNonces.get(nonce);
-  if (!expiry) return false;
-  sessionNonces.delete(nonce);
-  return Date.now() < expiry;
-}
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [nonce, expiry] of sessionNonces) {
-    if (now >= expiry) sessionNonces.delete(nonce);
-  }
-}, 60_000);
-
-let indexHtmlTemplate = null;
-try {
-  indexHtmlTemplate = fs.readFileSync(
-    path.join(__dirname, 'frontend', 'dist', 'index.html'),
-    'utf-8'
-  );
-} catch {
-  // No built frontend (dev mode)
-}
 
 /**
  * Validates JWT from WebSocket subprotocol: access_token.<jwt>
@@ -120,40 +87,14 @@ app.use(cors());
 // ============================================================================
 
 /**
- * GET / — Serve index.html with injected session nonce (production only)
- */
-app.get('/', (req, res) => {
-  if (!indexHtmlTemplate) {
-    return res.status(404).send('Frontend not built. Run make build first.');
-  }
-  const nonce = generateNonce();
-  const html = indexHtmlTemplate.replace(
-    '</head>',
-    `<meta name="session-nonce" content="${nonce}">\n</head>`
-  );
-  res.type('html').send(html);
-});
-
-/**
- * GET /api/session — Issues a JWT. In production, requires valid nonce.
+ * GET /api/session — Issues a signed JWT for session authentication.
  */
 app.get('/api/session', (req, res) => {
-  if (REQUIRE_NONCE) {
-    const nonce = req.headers['x-session-nonce'];
-    if (!nonce || !consumeNonce(nonce)) {
-      return res.status(403).json({
-        error: {
-          type: 'AuthenticationError',
-          code: 'INVALID_NONCE',
-          message: 'Valid session nonce required. Please refresh the page.',
-        },
-      });
-    }
-  }
-
-  const token = jwt.sign({ iat: Math.floor(Date.now() / 1000) }, SESSION_SECRET, {
-    expiresIn: JWT_EXPIRY,
-  });
+  const token = jwt.sign(
+    { iat: Math.floor(Date.now() / 1000) },
+    SESSION_SECRET,
+    { expiresIn: JWT_EXPIRY }
+  );
   res.json({ token });
 });
 
@@ -369,7 +310,7 @@ server.listen(CONFIG.port, CONFIG.host, () => {
   console.log("\n" + "=".repeat(70));
   console.log(`🚀 Backend API Server running at http://localhost:${CONFIG.port}`);
   console.log("");
-  console.log(`📡 GET  /api/session${REQUIRE_NONCE ? ' (nonce required)' : ''}`);
+  console.log(`📡 GET  /api/session`);
   console.log(`📡 WS   /api/live-transcription (auth required)`);
   console.log(`📡 GET  /api/metadata`);
   console.log("=".repeat(70) + "\n");
