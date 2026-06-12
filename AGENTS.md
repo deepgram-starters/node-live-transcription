@@ -81,6 +81,7 @@ Frontend: `cd frontend && corepack pnpm install`
 | `/api/session` | GET | None | Issue JWT session token |
 | `/api/metadata` | GET | None | Return app metadata (useCase, framework, language) |
 | `/api/live-transcription` | WS | JWT | Streams microphone audio to Deepgram for real-time transcription. |
+| `/api/tts` | WS | JWT | Streams text to a TTS provider (60db) and returns synthesized audio frames. |
 
 ## Customization Guide
 
@@ -120,6 +121,30 @@ If changing from browser microphone (Linear16) to another source:
 2. The frontend captures audio via `AudioContext` at 16kHz and converts Float32 → Int16 PCM
 3. If your audio source uses a different format, modify the frontend audio processing pipeline
 
+## Text-to-Speech (60db)
+
+TTS is additive — the STT path is unaffected and the server runs without a 60db
+key (only `WS /api/tts` is disabled until `SIXTYDB_API_KEY` is set).
+
+**Provider abstraction (`tts/`):** providers are pluggable behind one contract.
+
+| File | Purpose |
+|------|---------|
+| `tts/provider.js` | Documents the `TtsSession` interface (methods + normalized events) — the abstraction boundary. |
+| `tts/sixtydb.js` | 60db adapter — wraps the 60db WebSocket API behind the contract. |
+| `tts/index.js` | Provider registry — maps a name (`?provider=`/`TTS_PROVIDER`) to an adapter. |
+
+To add another provider (e.g. Deepgram `/v1/speak`), write an adapter exposing
+`createSession(options)` that emits the normalized events, then register it in
+`tts/index.js`. Nothing else changes.
+
+**Browser ⇄ `/api/tts` protocol** (provider-agnostic):
+
+- Client → server (JSON): `{ "type": "speak", "text": "..." }`, `{ "type": "flush" }`, `{ "type": "close" }`
+- Server → client: binary audio frames, plus JSON status `{ "type": "ready" | "flush_completed" | "connected" | "context_closed" | "error" }`
+- Config via query params: `provider`, `voice`, `encoding` (`LINEAR16`/`MULAW`/`OGG_OPUS`), `sample_rate`, `speed`, `stability`, `similarity`.
+- Auth is the same JWT-in-subprotocol scheme as STT (`access_token.<jwt>`).
+
 ## Frontend Changes
 
 The frontend is a git submodule from `deepgram-starters/live-transcription-html`. To modify:
@@ -142,10 +167,14 @@ The frontend is a git submodule from `deepgram-starters/live-transcription-html`
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
-| `DEEPGRAM_API_KEY` | Yes | — | Deepgram API key |
+| `DEEPGRAM_API_KEY` | Yes | — | Deepgram API key (STT) |
 | `PORT` | No | `8081` | Backend server port |
 | `HOST` | No | `0.0.0.0` | Backend bind address |
 | `SESSION_SECRET` | No | — | JWT signing secret (production) |
+| `SIXTYDB_API_KEY` | For TTS | — | 60db API key; required only for `WS /api/tts` |
+| `TTS_PROVIDER` | No | `sixtydb` | Default TTS provider name |
+| `SIXTYDB_TTS_WS_URL` | No | `wss://api.60db.ai/ws/tts` | 60db TTS WebSocket URL |
+| `SIXTYDB_DEFAULT_VOICE` | No | provider default | Default 60db `voice_id` |
 
 ## Conventional Commits
 

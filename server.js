@@ -20,6 +20,7 @@ require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
 const toml = require('toml');
+const { getTtsProvider } = require('./tts');
 
 // Validate required environment variables
 if (!process.env.DEEPGRAM_API_KEY) {
@@ -34,7 +35,19 @@ const CONFIG = {
   deepgramSttUrl: 'wss://api.deepgram.com/v1/listen',
   port: process.env.PORT || 8081,
   host: process.env.HOST || '0.0.0.0',
+
+  // Text-to-Speech (additive; STT works without these)
+  ttsProvider: process.env.TTS_PROVIDER || 'sixtydb',
+  sixtydbApiKey: process.env.SIXTYDB_API_KEY,
+  sixtydbTtsWsUrl: process.env.SIXTYDB_TTS_WS_URL || 'wss://api.60db.ai/ws/tts',
+  sixtydbDefaultVoice: process.env.SIXTYDB_DEFAULT_VOICE || '',
 };
+
+if (!CONFIG.sixtydbApiKey) {
+  console.warn(
+    'WARNING: SIXTYDB_API_KEY not set — WS /api/tts will reject connections until configured'
+  );
+}
 
 // ============================================================================
 // SESSION AUTH - JWT tokens for production security
@@ -65,15 +78,25 @@ function validateWsToken(protocols) {
 
 const app = express();
 const server = createServer(app);
+
+// Accept the access_token.* subprotocol so the client sees it echoed back.
+// Shared by every authenticated WebSocket endpoint (STT and TTS).
+function acceptAccessTokenProtocol(protocols) {
+  for (const proto of protocols) {
+    if (proto.startsWith('access_token.')) return proto;
+  }
+  return false;
+}
+
 const wss = new WebSocketServer({
   noServer: true,
-  handleProtocols: (protocols) => {
-    // Accept the access_token.* subprotocol so the client sees it echoed back
-    for (const proto of protocols) {
-      if (proto.startsWith('access_token.')) return proto;
-    }
-    return false;
-  },
+  handleProtocols: acceptAccessTokenProtocol,
+});
+
+// Separate WS server for TTS so its connection handling stays isolated from STT.
+const ttsWss = new WebSocketServer({
+  noServer: true,
+  handleProtocols: acceptAccessTokenProtocol,
 });
 
 // Track all active WebSocket connections for graceful shutdown
@@ -223,6 +246,136 @@ wss.on('connection', async (clientWs, request) => {
   });
 });
 
+// ============================================================================
+// TTS PROXY - WS /api/tts (provider-agnostic, see tts/provider.js)
+// ============================================================================
+
+/** Send JSON to the client only if the socket is still open. */
+function safeSendJson(ws, obj) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  }
+}
+
+/** Parse an optional numeric query param; undefined when absent/invalid. */
+function numOrUndefined(value) {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * TTS WebSocket proxy handler.
+ *
+ * Bridges a provider-agnostic browser protocol to the selected TTS provider:
+ *   Client → server (JSON): { type: 'speak', text }, { type: 'flush' }, { type: 'close' }
+ *   Server → client:        binary audio frames, plus JSON status messages
+ *                           ({ type: 'ready' | 'flush_completed' | 'connected'
+ *                              | 'context_closed' | 'error' })
+ */
+ttsWss.on('connection', (clientWs, request) => {
+  console.log('Client connected to /api/tts');
+  activeConnections.add(clientWs);
+
+  const url = new URL(request.url, `http://${request.headers.host}`);
+  const providerName = url.searchParams.get('provider') || CONFIG.ttsProvider;
+
+  let provider;
+  try {
+    provider = getTtsProvider(providerName);
+  } catch (err) {
+    safeSendJson(clientWs, { type: 'error', message: err.message });
+    clientWs.close(1008, 'Unknown TTS provider');
+    activeConnections.delete(clientWs);
+    return;
+  }
+
+  if (providerName === 'sixtydb' && !CONFIG.sixtydbApiKey) {
+    safeSendJson(clientWs, {
+      type: 'error',
+      message: 'TTS not configured: SIXTYDB_API_KEY is missing',
+    });
+    clientWs.close(1011, 'TTS not configured');
+    activeConnections.delete(clientWs);
+    return;
+  }
+
+  const session = provider.createSession({
+    apiKey: CONFIG.sixtydbApiKey,
+    wsUrl: CONFIG.sixtydbTtsWsUrl,
+    voiceId: url.searchParams.get('voice') || CONFIG.sixtydbDefaultVoice || undefined,
+    audioEncoding: url.searchParams.get('encoding') || undefined,
+    sampleRate: numOrUndefined(url.searchParams.get('sample_rate')),
+    speed: numOrUndefined(url.searchParams.get('speed')),
+    stability: numOrUndefined(url.searchParams.get('stability')),
+    similarity: numOrUndefined(url.searchParams.get('similarity')),
+  });
+
+  console.log(`Connecting to TTS provider: ${providerName}`);
+
+  // Upstream session events → client
+  session.on('connected', (info) => safeSendJson(clientWs, { type: 'connected', ...info }));
+  session.on('ready', (info) => safeSendJson(clientWs, { type: 'ready', ...info }));
+  session.on('audio', (buf) => {
+    if (clientWs.readyState === WebSocket.OPEN) clientWs.send(buf, { binary: true });
+  });
+  session.on('flushCompleted', (info) =>
+    safeSendJson(clientWs, { type: 'flush_completed', ...info })
+  );
+  session.on('contextClosed', (info) =>
+    safeSendJson(clientWs, { type: 'context_closed', ...info })
+  );
+  session.on('providerError', (err) =>
+    safeSendJson(clientWs, { type: 'error', message: err.message })
+  );
+  session.on('error', (err) => {
+    console.error('TTS upstream error:', err.message);
+    safeSendJson(clientWs, { type: 'error', message: 'TTS upstream error' });
+    if (clientWs.readyState === WebSocket.OPEN) clientWs.close(1011, 'TTS upstream error');
+  });
+  session.on('close', () => {
+    if (clientWs.readyState === WebSocket.OPEN) clientWs.close(1000, 'TTS session closed');
+  });
+
+  // Client control messages → upstream session
+  clientWs.on('message', (data, isBinary) => {
+    if (isBinary) return; // TTS is text-driven; ignore stray binary frames
+    let msg;
+    try {
+      msg = JSON.parse(data.toString());
+    } catch {
+      safeSendJson(clientWs, { type: 'error', message: 'Invalid JSON message' });
+      return;
+    }
+    switch (msg.type) {
+      case 'speak':
+        session.speak(msg.text || '');
+        break;
+      case 'flush':
+        session.flush();
+        break;
+      case 'close':
+        session.close();
+        break;
+      default:
+        safeSendJson(clientWs, { type: 'error', message: `Unknown message type: ${msg.type}` });
+    }
+  });
+
+  clientWs.on('close', (code, reason) => {
+    console.log(`TTS client disconnected: ${code} ${reason}`);
+    session.close();
+    activeConnections.delete(clientWs);
+  });
+
+  clientWs.on('error', (error) => {
+    console.error('TTS client WebSocket error:', error);
+    session.close();
+  });
+
+  session.start();
+});
+
 /**
  * Handle WebSocket upgrade requests for /api/live-transcription.
  * Validates JWT from access_token.<jwt> subprotocol before upgrading.
@@ -250,6 +403,24 @@ server.on('upgrade', (request, socket, head) => {
     return;
   }
 
+  if (pathname === '/api/tts') {
+    // Validate JWT from subprotocol (same scheme as STT)
+    const protocols = request.headers['sec-websocket-protocol'];
+    const validProto = validateWsToken(protocols);
+    if (!validProto) {
+      console.log('TTS WebSocket auth failed: invalid or missing token');
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    console.log('Backend handling /api/tts WebSocket (authenticated)');
+    ttsWss.handleUpgrade(request, socket, head, (ws) => {
+      ttsWss.emit('connection', ws, request);
+    });
+    return;
+  }
+
   // Unknown WebSocket path - reject
   console.log(`Unknown WebSocket path: ${pathname}`);
   socket.destroy();
@@ -263,7 +434,10 @@ function gracefulShutdown(signal) {
 
   // Stop accepting new connections
   wss.close(() => {
-    console.log('WebSocket server closed to new connections');
+    console.log('STT WebSocket server closed to new connections');
+  });
+  ttsWss.close(() => {
+    console.log('TTS WebSocket server closed to new connections');
   });
 
   // Close all active WebSocket connections
@@ -312,6 +486,7 @@ server.listen(CONFIG.port, CONFIG.host, () => {
   console.log("");
   console.log(`📡 GET  /api/session`);
   console.log(`📡 WS   /api/live-transcription (auth required)`);
+  console.log(`📡 WS   /api/tts (auth required, provider=${CONFIG.ttsProvider})`);
   console.log(`📡 GET  /api/metadata`);
   console.log("=".repeat(70) + "\n");
 });
