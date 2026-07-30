@@ -85,7 +85,7 @@ Frontend: `cd frontend && corepack pnpm install`
 ## Customization Guide
 
 ### Changing Default Parameters
-The WebSocket connection URL passes parameters to Deepgram. Find where the Deepgram WebSocket URL is constructed in the backend and modify defaults:
+The backend passes options to the Deepgram SDK's `deepgram.listen.v1.createConnection({ ... })` call. Find that call in `server.js` and modify the defaults:
 
 | Parameter | Default | Options | Effect |
 |-----------|---------|---------|--------|
@@ -96,8 +96,8 @@ The WebSocket connection URL passes parameters to Deepgram. Find where the Deepg
 | `sample_rate` | `16000` | `8000`, `16000`, `44100`, `48000` | Audio sample rate |
 | `channels` | `1` | `1`, `2` | Mono or stereo |
 
-### Adding More Deepgram Features via Query Params
-These can be appended to the Deepgram WebSocket URL as query parameters:
+### Adding More Deepgram Features
+These can be added as options to the `createConnection({ ... })` call:
 
 | Feature | Parameter | Example | Effect |
 |---------|-----------|---------|--------|
@@ -110,9 +110,9 @@ These can be appended to the Deepgram WebSocket URL as query parameters:
 | Keywords | `keywords` | `deepgram:2` | Boost keyword with weight |
 | No delay | `no_delay` | `true` | Minimize latency (may reduce accuracy) |
 
-**Backend:** Append params to the Deepgram URL in the WebSocket proxy handler.
+**Backend:** Add the option to the `deepgram.listen.v1.createConnection({ ... })` call in the WebSocket bridge handler.
 
-**Frontend:** The frontend sends these as query params when opening the WebSocket. To add a UI control for a new param, edit `frontend/main.js` — add an input/checkbox and include it in the `URLSearchParams` when connecting.
+**Frontend:** The frontend sends these as query params when opening the WebSocket; the backend reads them and passes them to `createConnection`. To add a UI control for a new param, edit `frontend/main.js` — add an input/checkbox and include it in the `URLSearchParams` when connecting.
 
 ### Changing Audio Format
 If changing from browser microphone (Linear16) to another source:
