@@ -102,7 +102,6 @@ These can be added as options to the `createConnection({ ... })` call:
 
 | Feature | Parameter | Example | Effect |
 |---------|-----------|---------|--------|
-| Interim results | `interim_results` | `true` | Show partial transcripts while speaking |
 | Endpointing | `endpointing` | `300` | Silence duration (ms) before finalization |
 | Utterance end | `utterance_end_ms` | `1000` | Detect end of utterance |
 | VAD events | `vad_events` | `true` | Voice activity detection events |
