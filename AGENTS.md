@@ -161,6 +161,9 @@ chore(deps): update frontend submodule
 ## Testing
 
 ```bash
+# Run the repository's unit tests
+pnpm test
+
 # Run conformance tests (requires app to be running)
 make test
 
