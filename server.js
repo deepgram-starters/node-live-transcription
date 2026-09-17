@@ -180,7 +180,27 @@ wss.on('connection', async (clientWs, request) => {
 
   // Buffer any browser messages that arrive before the Deepgram socket is open.
   let dgReady = false;
+  let dgOpened = false;
+  let upstreamFailed = false;
   const pending = [];
+
+  // Do not expose SDK or upstream errors to the browser: they can contain
+  // request details. Waiting for send's callback preserves Error-before-close.
+  function failClientConnection() {
+    if (upstreamFailed) return;
+    upstreamFailed = true;
+
+    if (clientWs.readyState !== WebSocket.OPEN) return;
+
+    clientWs.send(JSON.stringify({
+      type: 'Error',
+      description: 'Unable to connect to transcription service. Check your API key and try again.',
+    }), () => {
+      if (clientWs.readyState === WebSocket.OPEN) {
+        clientWs.close(1011, 'Transcription service connection failed');
+      }
+    });
+  }
 
   // Create the Deepgram STT connection object (not yet connected). The SDK
   // takes booleans/numbers as strings for websocket query options.
@@ -197,9 +217,7 @@ wss.on('connection', async (clientWs, request) => {
     });
   } catch (error) {
     console.error('Failed to create Deepgram connection:', error);
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.close(1011, 'Failed to reach Deepgram');
-    }
+    failClientConnection();
     activeConnections.delete(clientWs);
     return;
   }
@@ -243,19 +261,23 @@ wss.on('connection', async (clientWs, request) => {
   });
 
   dgConn.on('open', () => {
+    dgOpened = true;
     console.log('✓ Connected to Deepgram STT API');
   });
 
   dgConn.on('error', (error) => {
     console.error('Deepgram socket error:', error);
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.close(1011, 'Deepgram connection error');
-    }
+    failClientConnection();
   });
 
   dgConn.on('close', () => {
     console.log('Deepgram connection closed');
     if (clientWs.readyState === WebSocket.OPEN) {
+      // The SDK can emit close before waitForOpen() rejects on an auth failure.
+      if (!dgOpened) {
+        failClientConnection();
+        return;
+      }
       clientWs.close(1000, 'Deepgram connection closed');
     }
   });
@@ -333,9 +355,7 @@ wss.on('connection', async (clientWs, request) => {
     pending.length = 0;
   } catch (error) {
     console.error('Deepgram connection did not open:', error);
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.close(1011, 'Deepgram connection failed to open');
-    }
+    failClientConnection();
   }
 });
 

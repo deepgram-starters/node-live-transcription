@@ -11,7 +11,8 @@
   },
   "scripts": {
     "start": "node --no-deprecation server.js",
-    "start-backend": "nodemon --no-deprecation server.js"
+    "start-backend": "nodemon --no-deprecation server.js",
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
