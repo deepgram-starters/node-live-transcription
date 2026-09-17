@@ -171,6 +171,7 @@ wss.on('connection', async (clientWs, request) => {
   const model = url.searchParams.get('model') || 'nova-3';
   const language = url.searchParams.get('language') || 'en';
   const smart_format = url.searchParams.get('smart_format') || 'true';
+  const interim_results = url.searchParams.get('interim_results') || 'true';
   const encoding = url.searchParams.get('encoding') || 'linear16';
   const sample_rate = url.searchParams.get('sample_rate') || '16000';
   const channels = url.searchParams.get('channels') || '1';
@@ -189,6 +190,7 @@ wss.on('connection', async (clientWs, request) => {
       model,
       language,
       smart_format,
+      interim_results,
       encoding,
       sample_rate,
       channels,

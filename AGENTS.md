@@ -92,6 +92,7 @@ The backend passes options to the Deepgram SDK's `deepgram.listen.v1.createConne
 | `model` | `nova-3` | `nova-3`, `nova-2`, `base` | STT model |
 | `language` | `en` | Any BCP-47 code | Transcription language |
 | `smart_format` | `true` | `true`/`false` | Smart formatting |
+| `interim_results` | `true` | `true`/`false` | Show partial transcripts while speaking |
 | `encoding` | `linear16` | `linear16`, `opus`, `flac` | Audio encoding |
 | `sample_rate` | `16000` | `8000`, `16000`, `44100`, `48000` | Audio sample rate |
 | `channels` | `1` | `1`, `2` | Mono or stereo |
