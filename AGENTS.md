@@ -92,6 +92,7 @@ The backend passes options to the Deepgram SDK's `deepgram.listen.v1.createConne
 | `model` | `nova-3` | `nova-3`, `nova-2`, `base` | STT model |
 | `language` | `en` | Any BCP-47 code | Transcription language |
 | `smart_format` | `true` | `true`/`false` | Smart formatting |
+| `interim_results` | `true` | `true`/`false` | Show partial transcripts while speaking |
 | `encoding` | `linear16` | `linear16`, `opus`, `flac` | Audio encoding |
 | `sample_rate` | `16000` | `8000`, `16000`, `44100`, `48000` | Audio sample rate |
 | `channels` | `1` | `1`, `2` | Mono or stereo |
@@ -101,7 +102,6 @@ These can be added as options to the `createConnection({ ... })` call:
 
 | Feature | Parameter | Example | Effect |
 |---------|-----------|---------|--------|
-| Interim results | `interim_results` | `true` | Show partial transcripts while speaking |
 | Endpointing | `endpointing` | `300` | Silence duration (ms) before finalization |
 | Utterance end | `utterance_end_ms` | `1000` | Detect end of utterance |
 | VAD events | `vad_events` | `true` | Voice activity detection events |
@@ -161,6 +161,9 @@ chore(deps): update frontend submodule
 ## Testing
 
 ```bash
+# Run the repository's unit tests
+pnpm test
+
 # Run conformance tests (requires app to be running)
 make test
 
