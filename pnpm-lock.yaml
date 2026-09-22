@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@deepgram/sdk':
+        specifier: ^5.7.0
+        version: 5.7.0
       cors:
         specifier: 2.8.5
         version: 2.8.5
@@ -21,17 +24,21 @@ importers:
         specifier: 9.0.2
         version: 9.0.2
       toml:
-        specifier: 3.0.0
-        version: 3.0.0
+        specifier: 4.2.0
+        version: 4.2.0
       ws:
-        specifier: 8.18.0
-        version: 8.18.0
+        specifier: 8.21.0
+        version: 8.21.0
     devDependencies:
       nodemon:
         specifier: 3.1.10
         version: 3.1.10
 
 packages:
+
+  '@deepgram/sdk@5.7.0':
+    resolution: {integrity: sha512-A0uIaLukO+8JXUuT+iDE5ts8PCmdLCxDajawghFHLDEnFvA8dYYecCFxqFaTWgjJcJil0CtgIHKzm23E4RVqOA==}
+    engines: {node: '>=18.0.0'}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -425,8 +432,9 @@ packages:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
 
-  toml@3.0.0:
-    resolution: {integrity: sha512-y/mWCZinnvxjTKYhJ+pYxwD0mRLVvOtdS2Awbgxln6iEnt4rk0yBxeSBHkGJcPucRiG0e55mwWp+g/05rsrd6w==}
+  toml@4.2.0:
+    resolution: {integrity: sha512-TvAJjbHZlYmI323+srtqHQFyJsoWy6mI09ppkuj9+iRsqsVKG9fvTcOP7FHF2UCb0QSYtjEavffrKzdd0XgClg==}
+    engines: {node: '>=20'}
 
   touch@3.1.1:
     resolution: {integrity: sha512-r0eojU4bI8MnHr8c5bNo7lJDdI2qXlWWJk6a9EAFG7vbhTjElYhBVS3/miuE0uOuoLdb8Mc/rVfsmm6eo5o9GA==}
@@ -450,8 +458,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.18.0:
-    resolution: {integrity: sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==}
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -463,6 +471,13 @@ packages:
         optional: true
 
 snapshots:
+
+  '@deepgram/sdk@5.7.0':
+    dependencies:
+      ws: 8.21.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   accepts@2.0.0:
     dependencies:
@@ -902,7 +917,7 @@ snapshots:
 
   toidentifier@1.0.1: {}
 
-  toml@3.0.0: {}
+  toml@4.2.0: {}
 
   touch@3.1.1: {}
 
@@ -920,4 +935,4 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.18.0: {}
+  ws@8.21.0: {}

@@ -6,7 +6,7 @@ repository = "https://github.com/deepgram-starters/node-live-transcription"
 useCase = "live-transcription"
 language = "javascript"
 framework = "node"
-sdk = "N/A"
+sdk = "@deepgram/sdk"
 tags = ["live-transcription", "live-stt", "real-time-transcription", "real-time-asr", "streaming-transcription", "live-speech-to-text", "javascript", "node"]
 
 [check]
